@@ -28,4 +28,7 @@ COPY --from=server /app/target/release/e2ft /e2ft
 ENV ADDR=0.0.0.0:8080
 EXPOSE 8080
 USER 65532:65532
+# The binary checks itself (no shell or curl here): the page, then each TURN server in TURN_URLS with a signed
+# credential. Its own budget is 4 seconds. Podman keeps a HEALTHCHECK only in --format docker images.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/e2ft", "--health"]
 ENTRYPOINT ["/e2ft"]

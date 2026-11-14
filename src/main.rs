@@ -5,6 +5,7 @@ mod assets;
 mod bucket;
 mod config;
 mod discover;
+mod health;
 mod http;
 mod ice;
 mod lobby;
@@ -12,6 +13,7 @@ mod metrics;
 mod relay;
 mod rooms;
 mod sockets;
+mod stun;
 
 use std::{
     net::SocketAddr,
@@ -49,6 +51,10 @@ struct App {
 
 #[tokio::main]
 async fn main() {
+    if std::env::args_os().skip(1).any(|arg| arg == "--health") {
+        std::process::exit(health::run());
+    }
+
     let config = Config::from_env();
     let assets = Assets::load(config.assets_dir.as_deref()).unwrap_or_else(|err| panic!("{err}"));
     let has_legal = assets.has_legal();

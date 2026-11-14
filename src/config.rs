@@ -4,6 +4,9 @@ use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use crate::discover::Cidr;
 
+/// Where the server listens without `ADDR`.
+pub(crate) const ADDR: &str = "127.0.0.1:8080";
+
 pub(crate) struct Config {
     /// `ADDR`: where the public server listens.
     pub(crate) addr: SocketAddr,
@@ -22,7 +25,7 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn from_env() -> Config {
-        let addr = address("ADDR", "127.0.0.1:8080");
+        let addr = address("ADDR", ADDR);
         let metrics_addr = match std::env::var("METRICS").as_deref() {
             Ok("true") => Some(address("METRICS_ADDR", "127.0.0.1:9090")),
             Ok("false") | Err(_) => None,
@@ -59,7 +62,7 @@ impl Config {
     }
 }
 
-fn address(name: &str, default: &str) -> SocketAddr {
+pub(crate) fn address(name: &str, default: &str) -> SocketAddr {
     std::env::var(name)
         .unwrap_or_else(|_| default.into())
         .parse()

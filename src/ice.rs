@@ -17,7 +17,7 @@ use std::{
 use crate::bucket::Bucket;
 use crate::sockets::block;
 
-const TURN_TTL_SECS: u64 = 120;
+pub(crate) const TURN_TTL_SECS: u64 = 120;
 /// TURN credentials one client gets at once, then per second. A pairing costs two (one per peer), each extra relayed
 /// lane and each rejoin one more; many phones can share one carrier-NAT address, so it is generous.
 const TURN_BURST: f64 = 30.0;
@@ -29,7 +29,7 @@ pub struct Ice {
     budgets: Mutex<HashMap<IpAddr, Bucket>>,
 }
 
-fn list(var: &str, default: &str) -> Vec<String> {
+pub(crate) fn list(var: &str, default: &str) -> Vec<String> {
     std::env::var(var)
         .unwrap_or_else(|_| default.into())
         .split(',')
@@ -106,7 +106,7 @@ impl Ice {
     }
 }
 
-fn credential(secret: &[u8], username: &str) -> String {
+pub(crate) fn credential(secret: &[u8], username: &str) -> String {
     let mut mac = Hmac::<Sha1>::new_from_slice(secret).expect("HMAC takes any key length");
     mac.update(username.as_bytes());
     STANDARD.encode(mac.finalize().into_bytes())
