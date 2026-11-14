@@ -131,9 +131,9 @@ step (`docker inspect --format '{{json .State.Health}}' <container>`). Its exit 
 Any code but 0 marks the container unhealthy; 2 is reserved by Docker. Docker's health log keeps the code, podman's
 records every failure as 1 (run `podman exec <container> /e2ft --health` to see it). Podman keeps the health check only in images
 built with `--format docker`, as above. The check reaches TURN from inside the container: when the TURN host's public
-address is not reachable from there (a router without hairpin NAT), make its name resolve to the host inside the
-container, for example `extra_hosts: ["turn.example.com:host-gateway"]` on the compose service. Keep `TURN_URLS`
-public, since browsers get the same list.
+address is not reachable from there (a router without hairpin NAT, rootless podman), make its name resolve to the
+host inside the container, for example `extra_hosts: ["turn.example.com:host-gateway"]`; the compose file below does
+this. Keep `TURN_URLS` public, since browsers get the same list.
 
 Rooms exist only in the memory of the process that created them. Run one instance, since a restart ends the open
 rooms and a second instance would not see the first one's rooms.
@@ -250,7 +250,9 @@ Desktop. Its settings are in `ops/docker/turnserver.conf`; the secret and realm 
 never appear in a command line. A STUN request checks coturn's health every 30 seconds, and the app's own check (above) also
 makes a TURN allocation with the shared secret, so `docker compose ps` shows a stopped coturn or a mismatched secret. Open the
 TURN ports above in the firewall. The app listens on `127.0.0.1:8080`; put a TLS reverse proxy in front of it (below).
-`podman compose` works the same way.
+`podman compose` works the same way. With rootless podman, set `TURN_HOST` to a DNS name rather than an IP address:
+the container sees the host's own address as its own, so the app's health check reaches coturn only through the name,
+which compose points at the host.
 
 ### Kubernetes (Helm)
 
