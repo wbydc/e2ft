@@ -25,7 +25,6 @@ CI also runs these. Run them locally when your change touches what they cover:
   `E2E_TURN=1 npx playwright test tests/e2e/settings.spec.ts` and `npm run integration`, then
   `scripts/coturn.sh stop`. The script uses `turnserver` when it is installed and the coturn container image
   otherwise.
-- The self-hosting kits, when you change `ops/`: `ops/check.sh` (needs helm and docker, or `CONTAINER=podman`).
 - Security scans: gitleaks over the history, semgrep with `p/default`, `p/typescript` and `p/rust`, `cargo audit`,
   and `npm audit` in `web/`. A false positive gets `// nosemgrep: <rule>` with the reason on the line above.
 

@@ -211,6 +211,8 @@ impl<T: Clone> Rooms<T> {
         }
     }
 
+    // Each argument is one fact about the new room; a struct for them would only move the list.
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         &mut self,
         key: &str,
