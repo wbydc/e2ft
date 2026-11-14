@@ -1,0 +1,29 @@
+{
+  "name": "e2ft-web",
+  "version": "0.14.8",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp -r public/. dist/ && node scripts/build.mjs",
+    "check": "tsc --noEmit && oxfmt --check && npm run lint && node scripts/check-style.mjs src tests && node --experimental-transform-types --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts' 'scripts/**/*.test.mjs'",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives",
+    "fmt": "oxfmt",
+    "e2e": "playwright test",
+    "integration": "playwright test --config playwright.integration.config.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "jsqr": "1.4.0",
+    "uqr": "0.1.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
+    "oxfmt": "0.77.0",
+    "oxlint": "1.92.0",
+    "oxlint-tsgolint": "7.0.2006",
+    "typescript": "^5.9.0"
+  }
+}

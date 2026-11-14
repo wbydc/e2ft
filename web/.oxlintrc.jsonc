@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise"],
+  "categories": { "correctness": "error", "suspicious": "error", "perf": "error" },
+  "env": { "browser": true, "es2024": true },
+  "options": { "typeAware": true },
+  "ignorePatterns": ["dist/**", "public/brand/**", "test-results/**"],
+  "rules": {
+    // Every class member says public, private or protected; constructors stay bare.
+    "typescript/explicit-member-accessibility": ["error", { "overrides": { "constructors": "off" } }],
+    // Chunk sends, acks and e2e steps run in order on purpose.
+    "no-await-in-loop": "off",
+    // Sockets and channels have one owner handler that a reconnect replaces; addEventListener would stack them.
+    "unicorn/prefer-add-event-listener": "off",
+    // then() callbacks here end fire-and-forget UI chains; nothing reads their value.
+    "promise/always-return": "off",
+    // The code casts at its boundaries (JSON.parse, DOM events, untyped browser APIs) and checks each field after.
+    "typescript/no-unsafe-type-assertion": "off",
+    // `return void x` ends a handler early on purpose; it counts as returning nothing.
+    "typescript/consistent-return": ["error", { "treatUndefinedAsUnspecified": true }],
+    // node:test runs test() and suite() itself; their promises are not meant to be awaited.
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [
+          { "from": "package", "package": "node:test", "name": ["test", "suite", "describe", "it"] },
+        ],
+      },
+    ],
+  },
+  "overrides": [
+    { "files": ["public/sw.js"], "env": { "serviceworker": true } },
+    { "files": ["scripts/**", "playwright*.config.ts", "tests/**"], "env": { "node": true } },
+    {
+      "files": ["tests/**"],
+      "rules": {
+        // A test's helpers stay inside the test that uses them.
+        "unicorn/consistent-function-scoping": "off",
+        // Page scripts wrap prototype methods and call the saved original with .call(this).
+        "typescript/unbound-method": "off",
+      },
+    },
+  ],
+}

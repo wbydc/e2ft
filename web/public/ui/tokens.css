@@ -1,0 +1,116 @@
+/* The neutral default theme: every color, size and font the page reads. An assets folder replaces this file to
+   restyle the app; keep the token names, since components.css and app.css use them. */
+:root {
+  --ui-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ui-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ui-font-heading: var(--ui-font-sans);
+  --ui-text-xs: 12px;
+  --ui-text-sm: 14px;
+  --ui-text-md: 15px;
+  --ui-text-lg: 18px;
+  --ui-text-xl: 22px;
+  --ui-text-2xl: 28px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+  --ui-space-6: 32px;
+  --ui-space-7: 48px;
+  --ui-radius-control: 8px;
+  --ui-radius-card: 12px;
+  --ui-radius-pill: 999px;
+  --ui-size-control: 44px;
+  --ui-size-control-sm: 34px;
+  --ui-glass-sheen: linear-gradient(transparent, transparent);
+  --ui-elevation: 0 1px 2px var(--ui-shadow), 0 8px 24px -12px var(--ui-shadow);
+  --ui-bg: #f4f4f5;
+  --ui-backdrop-1: transparent;
+  --ui-backdrop-2: transparent;
+  --ui-backdrop-3: transparent;
+  --ui-backdrop-image: linear-gradient(transparent, transparent);
+  --ui-grain: 0;
+  --ui-grain-image: none;
+  --ui-grain-size: auto;
+  --ui-glass: #ffffff;
+  --ui-glass-blur: 0px;
+  --ui-glass-edge: #e4e4e7;
+  --ui-glass-highlight: #ffffff;
+  --ui-shadow: #18181b26;
+  --ui-surface: #ffffff;
+  --ui-fg: #18181b;
+  --ui-muted: #52525b;
+  --ui-border: #71717a;
+  --ui-input-bg: #ffffff;
+  --ui-accent: #1d4ed8;
+  --ui-on-accent: #ffffff;
+  --ui-ring: #1d4ed833;
+  --ui-link: #1d4ed8;
+  --ui-danger: #b91c1c;
+  --ui-on-danger: #ffffff;
+  --ui-info-bg: #e0e7ff;
+  --ui-info-fg: #1e3a8a;
+  --ui-success-bg: #dcfce7;
+  --ui-success-fg: #166534;
+  --ui-warning-bg: #fef3c7;
+  --ui-warning-fg: #78350f;
+  --ui-danger-bg: #fee2e2;
+  --ui-danger-fg: #991b1b;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ui-bg: #111113;
+    --ui-glass: #1c1c1f;
+    --ui-glass-edge: #2e2e33;
+    --ui-glass-highlight: #ffffff14;
+    --ui-shadow: #00000099;
+    --ui-surface: #1c1c1f;
+    --ui-fg: #f4f4f5;
+    --ui-muted: #a1a1aa;
+    --ui-border: #8b8b94;
+    --ui-input-bg: #111113;
+    --ui-accent: #93b4ff;
+    --ui-on-accent: #0b1020;
+    --ui-ring: #93b4ff40;
+    --ui-link: #93b4ff;
+    --ui-danger: #f87171;
+    --ui-on-danger: #111113;
+    --ui-info-bg: #1e2547;
+    --ui-info-fg: #c7d2fe;
+    --ui-success-bg: #0f2e1d;
+    --ui-success-fg: #86efac;
+    --ui-warning-bg: #3a2a10;
+    --ui-warning-fg: #fcd34d;
+    --ui-danger-bg: #3b1416;
+    --ui-danger-fg: #fca5a5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ui-bg: #111113;
+  --ui-glass: #1c1c1f;
+  --ui-glass-edge: #2e2e33;
+  --ui-glass-highlight: #ffffff14;
+  --ui-shadow: #00000099;
+  --ui-surface: #1c1c1f;
+  --ui-fg: #f4f4f5;
+  --ui-muted: #a1a1aa;
+  --ui-border: #8b8b94;
+  --ui-input-bg: #111113;
+  --ui-accent: #93b4ff;
+  --ui-on-accent: #0b1020;
+  --ui-ring: #93b4ff40;
+  --ui-link: #93b4ff;
+  --ui-danger: #f87171;
+  --ui-on-danger: #111113;
+  --ui-info-bg: #1e2547;
+  --ui-info-fg: #c7d2fe;
+  --ui-success-bg: #0f2e1d;
+  --ui-success-fg: #86efac;
+  --ui-warning-bg: #3a2a10;
+  --ui-warning-fg: #fcd34d;
+  --ui-danger-bg: #3b1416;
+  --ui-danger-fg: #fca5a5;
+  color-scheme: dark;
+}

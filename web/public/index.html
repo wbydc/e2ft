@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>e2ft</title>
+    <script src="/theme.js"></script>
+    <!-- slot:head -->
+    <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)" data-scheme="light" />
+    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)" data-scheme="dark" />
+    <link rel="icon" href="/ui/favicon.svg" type="image/svg+xml" />
+    <!-- /slot:head -->
+    <link rel="stylesheet" href="/ui/tokens.css" />
+    <link rel="stylesheet" href="/ui/components.css" />
+    <link rel="stylesheet" href="/app.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body class="ui-backdrop">
+    <a class="ui-skip-link" href="#main" data-i18n="skip">Skip to Content</a>
+    <header class="top">
+      <a class="home" href="/"> <!-- slot:home --><span class="brand">e2ft</span><!-- /slot:home --> </a>
+      <div class="prefs">
+        <button
+          id="theme"
+          class="ui-btn ui-btn--secondary ui-btn--sm theme"
+          type="button"
+          data-state="auto"
+          aria-label="Theme: Auto"
+          title="Theme: Auto"
+        >
+          <svg
+            class="ui-icon i-auto"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9.173 14.83a4 4 0 1 1 5.657 -5.657" />
+            <path d="M11.294 12.707l.174 .247a7.5 7.5 0 0 0 8.845 2.492a9 9 0 0 1 -14.671 2.914" />
+            <path d="M3 12h1" />
+            <path d="M12 3v1" />
+            <path d="M5.6 5.6l.7 .7" />
+            <path d="M3 21l18 -18" />
+          </svg>
+          <svg
+            class="ui-icon i-light"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+            <path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" />
+          </svg>
+          <svg
+            class="ui-icon i-dark"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008" />
+          </svg>
+        </button>
+        <button
+          id="settings-btn"
+          class="ui-btn ui-btn--secondary ui-btn--sm icon-btn"
+          type="button"
+          aria-label="Settings"
+          title="Settings"
+          data-i18n-aria-label="settings"
+          data-i18n-title="settings"
+        >
+          <svg
+            class="ui-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065"
+            />
+            <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+          </svg>
+        </button>
+        <select
+          id="lang"
+          class="ui-input lang"
+          name="lang"
+          aria-label="Language"
+          data-i18n-aria-label="language"
+        ></select>
+      </div>
+    </header>
+
+    <main id="main" class="ui-card">
+      <section id="home" class="stack">
+        <h1 class="ui-h1" data-i18n="homeTitle">Send a File Privately</h1>
+        <p class="ui-muted" data-i18n="homeLead">
+          Create a room, send the invite to one person, and pass files straight between your browsers. Everything is
+          encrypted with a key the server never sees, and the room is deleted when either of you leaves.
+        </p>
+        <div id="notify-card" class="ui-alert notify-card" role="note" hidden>
+          <p data-i18n="notifyAsk">
+            Get a system notification when a file is offered or a transfer ends while you are in another tab?
+          </p>
+          <div class="row">
+            <button id="notify-on" class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-i18n="notifyTurnOn">
+              Turn On
+            </button>
+            <button id="notify-no" class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-i18n="notifyNoThanks">
+              No Thanks
+            </button>
+          </div>
+        </div>
+        <div class="row">
+          <button id="create" class="ui-btn grow" type="button" data-i18n="create">Create Room</button>
+          <button
+            id="custom"
+            class="ui-btn ui-btn--secondary icon-btn"
+            type="button"
+            aria-label="Create a Custom Room"
+            title="Create a Custom Room"
+            data-i18n-aria-label="customRoom"
+            data-i18n-title="customRoom"
+          >
+            <svg
+              class="ui-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+              <path d="M4 6l8 0" />
+              <path d="M16 6l4 0" />
+              <path d="M6 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+              <path d="M4 12l2 0" />
+              <path d="M10 12l10 0" />
+              <path d="M15 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+              <path d="M4 18l11 0" />
+              <path d="M19 18l1 0" />
+            </svg>
+          </button>
+        </div>
+        <!-- slot:legal-note --><!-- /slot:legal-note -->
+
+        <section id="devices-box" class="stack join" aria-labelledby="devices-title" hidden>
+          <h2 class="ui-h2" id="devices-title" data-i18n="devicesTitle">Devices on This Network</h2>
+          <p id="devices-self" class="ui-muted hint"></p>
+          <ul id="devices" class="devices"></ul>
+          <p id="devices-empty" class="ui-muted hint" data-i18n="devicesEmpty">
+            No other devices yet. Open this page on another device on the same network and turn on “Visible to devices
+            on my network” in its settings.
+          </p>
+          <p id="devices-note" class="hint" aria-live="polite" hidden></p>
+        </section>
+
+        <form id="join" class="stack join" novalidate>
+          <h2 class="ui-h2" data-i18n="joinTitle">Join a Room</h2>
+          <button id="scan" class="ui-btn" type="button" data-i18n="scanQr" hidden>Scan QR Code</button>
+          <div class="field">
+            <label class="ui-label" for="access" data-i18n="accessKey">ACCESS KEY</label>
+            <input
+              class="ui-input mono"
+              id="access"
+              name="access"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              placeholder="e.g. 7K2M…, or paste the invite link…"
+              data-i18n-placeholder="accessPlaceholder"
+              aria-describedby="join-error"
+            />
+          </div>
+          <div class="field">
+            <label class="ui-label" for="secret" data-i18n="secretKey">SECRET KEY</label>
+            <input
+              class="ui-input mono"
+              id="secret"
+              name="secret"
+              type="password"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              aria-describedby="join-error"
+            />
+          </div>
+          <p class="ui-field-error" id="join-error" aria-live="polite" hidden></p>
+          <button class="ui-btn ui-btn--secondary" type="submit" data-i18n="join">Join Room</button>
+        </form>
+      </section>
+
+      <section id="room" class="stack" hidden>
+        <h1 class="ui-h1" data-i18n="roomTitle">Room</h1>
+        <div class="status-row">
+          <div id="status" class="ui-alert" role="status" aria-live="polite"></div>
+          <span id="countdown" class="countdown" aria-hidden="true" hidden></span>
+          <span id="waiting" class="waiting" aria-hidden="true" hidden></span>
+          <svg id="plug" class="plug" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" hidden>
+            <path class="plug-cord" d="M2 7c3.2 0 3.2 6 6 6" />
+            <rect class="plug-body" x="8" y="9" width="9" height="8" rx="2.5" />
+            <path class="plug-prong" d="M17 11.5h4M17 14.5h4" />
+            <g class="plug-spark">
+              <circle cx="20.5" cy="8.5" r="1" />
+              <circle cx="22.5" cy="16.5" r="0.8" />
+            </g>
+          </svg>
+        </div>
+        <div class="row room-info-row">
+          <p id="room-info" class="ui-muted room-info grow"></p>
+          <button
+            id="conn-btn"
+            class="ui-btn ui-btn--secondary ui-btn--sm icon-btn"
+            type="button"
+            hidden
+            aria-label="Connection Info"
+            title="Connection Info"
+            data-i18n-aria-label="connInfo"
+            data-i18n-title="connInfo"
+          >
+            <svg
+              class="ui-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z" />
+              <path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5z" />
+              <path d="M3 21l2.5 -2.5" />
+              <path d="M18.5 5.5l2.5 -2.5" />
+              <path d="M10 11l-2 2" />
+              <path d="M13 14l-2 2" />
+            </svg>
+          </button>
+        </div>
+
+        <div id="invite-box" class="stack" hidden>
+          <div class="field">
+            <label class="ui-label" for="invite" data-i18n="inviteLink">INVITE LINK</label>
+            <div class="row">
+              <input class="ui-input mono" id="invite" name="invite" readonly autocomplete="off" spellcheck="false" />
+              <button id="copy" class="ui-btn ui-btn--secondary" type="button" data-i18n="copy">Copy Link</button>
+              <button
+                id="show-qr"
+                class="ui-btn ui-btn--secondary icon-btn"
+                type="button"
+                aria-expanded="false"
+                aria-controls="invite-qr"
+                aria-label="Show QR Code"
+                title="Show QR Code"
+              >
+                <svg
+                  class="ui-icon"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                  <path d="M7 17l0 .01" />
+                  <path d="M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                  <path d="M7 7l0 .01" />
+                  <path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                  <path d="M17 7l0 .01" />
+                  <path d="M14 14l3 0" />
+                  <path d="M20 14l0 .01" />
+                  <path d="M14 14l0 3" />
+                  <path d="M14 20l3 0" />
+                  <path d="M17 17l3 0" />
+                  <path d="M20 17l0 3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="qr-box" class="qr-box">
+            <div
+              id="invite-qr"
+              class="invite-qr"
+              role="img"
+              aria-label="QR code of the invite link"
+              data-i18n-aria-label="qrLabel"
+            ></div>
+          </div>
+          <details>
+            <summary class="ui-muted" data-i18n="keysSeparately">Send the keys separately instead</summary>
+            <div class="stack keys">
+              <div class="field">
+                <label class="ui-label" for="show-access" data-i18n="accessKey">ACCESS KEY</label>
+                <input
+                  class="ui-input mono"
+                  id="show-access"
+                  name="show-access"
+                  readonly
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="field">
+                <label class="ui-label" for="show-secret" data-i18n="secretKey">SECRET KEY</label>
+                <input
+                  class="ui-input mono"
+                  id="show-secret"
+                  name="show-secret"
+                  readonly
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <p id="ios-note" class="ui-muted" data-i18n="iosNote" hidden>
+          On iPhone, keep Safari open on this page. Switching apps or locking the phone ends the room.
+        </p>
+        <label id="drop" class="drop is-disabled" for="file" hidden>
+          <span class="drop-title" data-i18n="dropTitle">Choose a File or Drop It Here</span>
+          <span class="ui-muted" data-i18n="dropHint">The other person accepts it before anything is sent.</span>
+          <input id="file" name="file" type="file" class="visually-hidden" disabled />
+        </label>
+        <div id="out-row" class="xfer" hidden>
+          <div class="xfer-head">
+            <span class="ui-label" data-i18n="sending">SENDING</span>
+            <span id="out-name" class="xfer-name ui-truncate"></span>
+          </div>
+          <div id="out-track" class="xfer-track">
+            <progress
+              id="out-bar"
+              max="1"
+              value="0"
+              aria-label="Sending progress"
+              data-i18n-aria-label="sendingProgress"
+            ></progress>
+            <div class="spell" aria-hidden="true">
+              <span class="spell-wand"></span>
+              <svg class="spell-beam" viewBox="0 0 100 28" preserveAspectRatio="none" focusable="false">
+                <path
+                  class="spell-coil a"
+                  vector-effect="non-scaling-stroke"
+                  d="M-20,14.0 L-18,17.5 L-16,19.7 L-14,19.7 L-12,17.5 L-10,14.0 L-8,10.5 L-6,8.3 L-4,8.3 L-2,10.5 L0,14.0 L2,17.5 L4,19.7 L6,19.7 L8,17.5 L10,14.0 L12,10.5 L14,8.3 L16,8.3 L18,10.5 L20,14.0 L22,17.5 L24,19.7 L26,19.7 L28,17.5 L30,14.0 L32,10.5 L34,8.3 L36,8.3 L38,10.5 L40,14.0 L42,17.5 L44,19.7 L46,19.7 L48,17.5 L50,14.0 L52,10.5 L54,8.3 L56,8.3 L58,10.5 L60,14.0 L62,17.5 L64,19.7 L66,19.7 L68,17.5 L70,14.0 L72,10.5 L74,8.3 L76,8.3 L78,10.5 L80,14.0 L82,17.5 L84,19.7 L86,19.7 L88,17.5 L90,14.0 L92,10.5 L94,8.3 L96,8.3 L98,10.5 L100,14.0 L102,17.5 L104,19.7 L106,19.7 L108,17.5 L110,14.0 L112,10.5 L114,8.3 L116,8.3 L118,10.5 L120,14.0"
+                />
+                <path
+                  class="spell-coil b"
+                  vector-effect="non-scaling-stroke"
+                  d="M-20,14.0 L-18,10.5 L-16,8.3 L-14,8.3 L-12,10.5 L-10,14.0 L-8,17.5 L-6,19.7 L-4,19.7 L-2,17.5 L0,14.0 L2,10.5 L4,8.3 L6,8.3 L8,10.5 L10,14.0 L12,17.5 L14,19.7 L16,19.7 L18,17.5 L20,14.0 L22,10.5 L24,8.3 L26,8.3 L28,10.5 L30,14.0 L32,17.5 L34,19.7 L36,19.7 L38,17.5 L40,14.0 L42,10.5 L44,8.3 L46,8.3 L48,10.5 L50,14.0 L52,17.5 L54,19.7 L56,19.7 L58,17.5 L60,14.0 L62,10.5 L64,8.3 L66,8.3 L68,10.5 L70,14.0 L72,17.5 L74,19.7 L76,19.7 L78,17.5 L80,14.0 L82,10.5 L84,8.3 L86,8.3 L88,10.5 L90,14.0 L92,17.5 L94,19.7 L96,19.7 L98,17.5 L100,14.0 L102,10.5 L104,8.3 L106,8.3 L108,10.5 L110,14.0 L112,17.5 L114,19.7 L116,19.7 L118,17.5 L120,14.0"
+                />
+                <path
+                  class="spell-coil c"
+                  vector-effect="non-scaling-stroke"
+                  d="M-20,17.5 L-18,16.8 L-16,15.1 L-14,12.9 L-12,11.2 L-10,10.5 L-8,11.2 L-6,12.9 L-4,15.1 L-2,16.8 L0,17.5 L2,16.8 L4,15.1 L6,12.9 L8,11.2 L10,10.5 L12,11.2 L14,12.9 L16,15.1 L18,16.8 L20,17.5 L22,16.8 L24,15.1 L26,12.9 L28,11.2 L30,10.5 L32,11.2 L34,12.9 L36,15.1 L38,16.8 L40,17.5 L42,16.8 L44,15.1 L46,12.9 L48,11.2 L50,10.5 L52,11.2 L54,12.9 L56,15.1 L58,16.8 L60,17.5 L62,16.8 L64,15.1 L66,12.9 L68,11.2 L70,10.5 L72,11.2 L74,12.9 L76,15.1 L78,16.8 L80,17.5 L82,16.8 L84,15.1 L86,12.9 L88,11.2 L90,10.5 L92,11.2 L94,12.9 L96,15.1 L98,16.8 L100,17.5 L102,16.8 L104,15.1 L106,12.9 L108,11.2 L110,10.5 L112,11.2 L114,12.9 L116,15.1 L118,16.8 L120,17.5"
+                />
+                <line class="spell-core" vector-effect="non-scaling-stroke" x1="0" y1="14" x2="100" y2="14" />
+              </svg>
+              <span class="spell-head"></span>
+            </div>
+          </div>
+          <div class="xfer-foot">
+            <span id="out-text" class="ui-num ui-muted"></span>
+            <button id="out-cancel" class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-i18n="cancelSending">
+              Cancel Sending
+            </button>
+          </div>
+        </div>
+        <div id="in-row" class="xfer" hidden>
+          <div class="xfer-head">
+            <span class="ui-label" data-i18n="receiving">RECEIVING</span>
+            <span id="in-name" class="xfer-name ui-truncate"></span>
+          </div>
+          <div id="in-track" class="xfer-track">
+            <progress
+              id="in-bar"
+              max="1"
+              value="0"
+              aria-label="Receiving progress"
+              data-i18n-aria-label="receivingProgress"
+            ></progress>
+            <div class="spell" aria-hidden="true">
+              <span class="spell-wand"></span>
+              <svg class="spell-beam" viewBox="0 0 100 28" preserveAspectRatio="none" focusable="false">
+                <path
+                  class="spell-coil a"
+                  vector-effect="non-scaling-stroke"
+                  d="M-20,14.0 L-18,17.5 L-16,19.7 L-14,19.7 L-12,17.5 L-10,14.0 L-8,10.5 L-6,8.3 L-4,8.3 L-2,10.5 L0,14.0 L2,17.5 L4,19.7 L6,19.7 L8,17.5 L10,14.0 L12,10.5 L14,8.3 L16,8.3 L18,10.5 L20,14.0 L22,17.5 L24,19.7 L26,19.7 L28,17.5 L30,14.0 L32,10.5 L34,8.3 L36,8.3 L38,10.5 L40,14.0 L42,17.5 L44,19.7 L46,19.7 L48,17.5 L50,14.0 L52,10.5 L54,8.3 L56,8.3 L58,10.5 L60,14.0 L62,17.5 L64,19.7 L66,19.7 L68,17.5 L70,14.0 L72,10.5 L74,8.3 L76,8.3 L78,10.5 L80,14.0 L82,17.5 L84,19.7 L86,19.7 L88,17.5 L90,14.0 L92,10.5 L94,8.3 L96,8.3 L98,10.5 L100,14.0 L102,17.5 L104,19.7 L106,19.7 L108,17.5 L110,14.0 L112,10.5 L114,8.3 L116,8.3 L118,10.5 L120,14.0"
+                />
+                <path
+                  class="spell-coil b"
+                  vector-effect="non-scaling-stroke"
+                  d="M-20,14.0 L-18,10.5 L-16,8.3 L-14,8.3 L-12,10.5 L-10,14.0 L-8,17.5 L-6,19.7 L-4,19.7 L-2,17.5 L0,14.0 L2,10.5 L4,8.3 L6,8.3 L8,10.5 L10,14.0 L12,17.5 L14,19.7 L16,19.7 L18,17.5 L20,14.0 L22,10.5 L24,8.3 L26,8.3 L28,10.5 L30,14.0 L32,17.5 L34,19.7 L36,19.7 L38,17.5 L40,14.0 L42,10.5 L44,8.3 L46,8.3 L48,10.5 L50,14.0 L52,17.5 L54,19.7 L56,19.7 L58,17.5 L60,14.0 L62,10.5 L64,8.3 L66,8.3 L68,10.5 L70,14.0 L72,17.5 L74,19.7 L76,19.7 L78,17.5 L80,14.0 L82,10.5 L84,8.3 L86,8.3 L88,10.5 L90,14.0 L92,17.5 L94,19.7 L96,19.7 L98,17.5 L100,14.0 L102,10.5 L104,8.3 L106,8.3 L108,10.5 L110,14.0 L112,17.5 L114,19.7 L116,19.7 L118,17.5 L120,14.0"
+                />
+                <path
+                  class="spell-coil c"
+                  vector-effect="non-scaling-stroke"
+                  d="M-20,17.5 L-18,16.8 L-16,15.1 L-14,12.9 L-12,11.2 L-10,10.5 L-8,11.2 L-6,12.9 L-4,15.1 L-2,16.8 L0,17.5 L2,16.8 L4,15.1 L6,12.9 L8,11.2 L10,10.5 L12,11.2 L14,12.9 L16,15.1 L18,16.8 L20,17.5 L22,16.8 L24,15.1 L26,12.9 L28,11.2 L30,10.5 L32,11.2 L34,12.9 L36,15.1 L38,16.8 L40,17.5 L42,16.8 L44,15.1 L46,12.9 L48,11.2 L50,10.5 L52,11.2 L54,12.9 L56,15.1 L58,16.8 L60,17.5 L62,16.8 L64,15.1 L66,12.9 L68,11.2 L70,10.5 L72,11.2 L74,12.9 L76,15.1 L78,16.8 L80,17.5 L82,16.8 L84,15.1 L86,12.9 L88,11.2 L90,10.5 L92,11.2 L94,12.9 L96,15.1 L98,16.8 L100,17.5 L102,16.8 L104,15.1 L106,12.9 L108,11.2 L110,10.5 L112,11.2 L114,12.9 L116,15.1 L118,16.8 L120,17.5"
+                />
+                <line class="spell-core" vector-effect="non-scaling-stroke" x1="0" y1="14" x2="100" y2="14" />
+              </svg>
+              <span class="spell-head"></span>
+            </div>
+          </div>
+          <div class="xfer-foot">
+            <span id="in-text" class="ui-num ui-muted"></span>
+            <button
+              id="in-cancel"
+              class="ui-btn ui-btn--secondary ui-btn--sm"
+              type="button"
+              data-i18n="cancelReceiving"
+            >
+              Cancel Receiving
+            </button>
+          </div>
+        </div>
+
+        <section id="history-box" class="stack history" hidden>
+          <h2 class="ui-label" data-i18n="historyTitle">FILES IN THIS ROOM</h2>
+          <ul id="history" class="history-list"></ul>
+        </section>
+
+        <div class="row">
+          <button id="leave" class="ui-btn ui-btn--danger" type="button" data-i18n="leave">Leave Room</button>
+          <button id="restart" class="ui-btn" type="button" hidden data-i18n="restart">Create a New Room</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="legal-footer">
+      <!-- slot:footer --><!-- /slot:footer -->
+      <span class="ui-muted">v__VERSION__</span>
+    </footer>
+
+    <dialog id="offer" class="ui-card dialog" aria-labelledby="offer-title">
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="offer-title" data-i18n="offerTitle">Incoming File</h2>
+        <p><span id="offer-name" class="offer-name"></span> <span id="offer-size" class="ui-muted ui-num"></span></p>
+        <p id="offer-hint" class="ui-muted"></p>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" value="decline" data-i18n="decline">Decline</button>
+          <button id="offer-accept" class="ui-btn" type="button">Save File…</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="ask" class="ui-card dialog" aria-labelledby="ask-title" aria-describedby="ask-text">
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="ask-title" data-i18n="askTitle">Start a Room?</h2>
+        <p id="ask-text"></p>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" value="decline" data-i18n="decline">Decline</button>
+          <button id="ask-accept" class="ui-btn" value="accept" data-i18n="accept">Accept</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="compare" class="ui-card dialog" aria-labelledby="compare-title" aria-describedby="compare-text">
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="compare-title" data-i18n="compareTitle">Compare the Code</h2>
+        <p id="compare-code" class="compare-code ui-num"></p>
+        <p id="compare-text" data-i18n="compareText">
+          The other device shows a code too. Continue only if both codes are the same.
+        </p>
+        <div class="row">
+          <button id="compare-no" class="ui-btn ui-btn--secondary" value="no-match" data-i18n="compareNoMatch">
+            No Match
+          </button>
+          <button id="compare-yes" class="ui-btn" value="match" data-i18n="compareMatch">It Matches</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="scanner" class="ui-card dialog" aria-labelledby="scan-title">
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="scan-title" data-i18n="scanTitle">Scan the Invite</h2>
+        <video id="scan-video" class="scan-video" muted playsinline></video>
+        <p id="scan-hint" class="ui-muted hint" data-i18n="scanHint">
+          Point the camera at the QR code on the other screen.
+        </p>
+        <p class="ui-field-error" id="scan-error" aria-live="polite" hidden></p>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" value="cancel" data-i18n="cancel">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="conn" class="ui-card dialog" aria-labelledby="conn-title">
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="conn-title" data-i18n="connTitle">Connection</h2>
+        <p id="conn-path"></p>
+        <p id="conn-detail" class="ui-muted hint ui-num"></p>
+        <svg id="conn-graph" class="conn-graph" viewBox="0 0 320 72" aria-hidden="true" focusable="false">
+          <path class="conn-wire" d="M72 36h188" />
+          <g class="conn-relay">
+            <circle cx="160" cy="36" r="11" />
+            <path d="M152 33h14l-3-3M168 39h-14l3 3" />
+          </g>
+          <g class="conn-device">
+            <rect x="20" y="18" width="52" height="34" rx="4" />
+            <path d="M12 58h68M46 52v6" />
+          </g>
+          <g class="conn-device">
+            <rect x="260" y="14" width="26" height="44" rx="6" />
+            <path d="M268 52h10" />
+          </g>
+          <circle class="conn-dot" cx="72" cy="36" r="3.5" />
+        </svg>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" value="close" data-i18n="close">Close</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog
+      id="turn-choice"
+      class="ui-card dialog"
+      aria-labelledby="turn-choice-title"
+      aria-describedby="turn-choice-text"
+    >
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="turn-choice-title" data-i18n="turnChoiceTitle">Which TURN Server?</h2>
+        <p id="turn-choice-text" data-i18n="turnChoiceText">
+          The other person shared their TURN server. If you relay through it, that server will see your IP address.
+        </p>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" id="turn-mine" value="mine">Use Mine</button>
+          <button class="ui-btn" value="theirs" data-i18n="turnTheirs">Use Theirs</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settings" class="ui-card dialog" aria-labelledby="settings-title">
+      <form id="settings-form" method="dialog" class="stack" novalidate>
+        <h2 class="ui-h2" id="settings-title">Settings</h2>
+        <div id="set-room" class="stack ui-alert" hidden>
+          <p id="set-room-lead" data-i18n="roomLead">The creator set up this room:</p>
+          <ul id="set-room-list" class="room-hints"></ul>
+        </div>
+        <div class="field" id="set-keep-field">
+          <label class="ui-label" for="set-keep" data-i18n="keepAliveLabel">KEEP THE ROOM IF A SIDE DROPS</label>
+          <select class="ui-input" id="set-keep" name="keep"></select>
+        </div>
+        <div class="field" id="set-qr-field">
+          <label class="ui-label" for="set-qr" data-i18n="qrSetting">QR CODE ON A NEW ROOM</label>
+          <select class="ui-input" id="set-qr" name="qr">
+            <option value="show" data-i18n="qrShow">Show</option>
+            <option value="hide" data-i18n="qrHide">Hide</option>
+          </select>
+        </div>
+        <h3 class="ui-label" id="set-joiner" data-i18n="yourConnection" hidden>YOUR CONNECTION</h3>
+        <div class="field">
+          <label class="ui-label" for="set-relay" data-i18n="relayLabel">RELAY</label>
+          <select class="ui-input" id="set-relay" name="relay">
+            <option value="ours" data-i18n="relayOurs">Our servers</option>
+            <option value="own" data-i18n="relayOwn">My TURN server</option>
+          </select>
+          <p class="ui-muted hint" data-i18n="relayHint">
+            The relay carries encrypted traffic when a direct connection fails.
+          </p>
+        </div>
+        <div class="field" id="set-always-turn-field">
+          <label class="check" for="set-always-turn">
+            <input id="set-always-turn" name="always-turn" type="checkbox" aria-describedby="set-always-turn-hint" />
+            <span id="set-always-turn-label">Always use TURN</span>
+          </label>
+          <p class="ui-muted hint" id="set-always-turn-hint">
+            Hides your IP from the other person: this browser connects only through the relay, in every room. Slower.
+            The relay server (ours or yours) still sees your IP.
+          </p>
+        </div>
+        <div id="set-turn" class="stack" hidden>
+          <div class="field">
+            <label class="ui-label" for="set-urls" data-i18n="turnUrls">TURN URLS</label>
+            <input
+              class="ui-input mono"
+              id="set-urls"
+              name="urls"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="turns:turn.example.com:5349…"
+              aria-describedby="set-error"
+            />
+          </div>
+          <div class="field">
+            <label class="ui-label" for="set-user" data-i18n="turnUser">USERNAME</label>
+            <input class="ui-input mono" id="set-user" name="username" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="field">
+            <label class="ui-label" for="set-pass" data-i18n="turnPass">PASSWORD</label>
+            <input
+              class="ui-input mono"
+              id="set-pass"
+              name="credential"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <p class="ui-muted hint" data-i18n="turnHint">
+            Stays in this browser. Only your browser talks to this server.
+          </p>
+          <div class="field" id="set-share-field">
+            <label class="check" for="set-share">
+              <input id="set-share" name="share" type="checkbox" aria-describedby="set-share-hint" />
+              <span data-i18n="shareTurn">Share my TURN server with the other person</span>
+            </label>
+            <p class="ui-muted hint" id="set-share-hint" data-i18n="shareTurnHint">
+              Their browser gets it end-to-end encrypted, for this room only, and never shows or saves it.
+            </p>
+          </div>
+        </div>
+        <div class="field" id="set-shared-field" hidden>
+          <label class="ui-label" for="set-shared" data-i18n="turnServerLabel">TURN SERVER</label>
+          <select class="ui-input" id="set-shared" name="shared">
+            <option value="theirs" data-i18n="turnTheirs">Use Theirs</option>
+            <option value="mine" id="set-shared-mine" data-i18n="turnMine">Use Mine</option>
+            <option value="ours" id="set-shared-ours" data-i18n="turnOurs">Use Ours</option>
+          </select>
+          <p class="ui-muted hint" data-i18n="turnChoiceText">
+            The other person shared their TURN server. If you relay through it, that server will see your IP address.
+          </p>
+        </div>
+        <div class="field" id="set-conn-field" hidden>
+          <label class="ui-label" for="set-conn" data-i18n="connLabel">CONNECTION</label>
+          <select class="ui-input" id="set-conn" name="conn" aria-describedby="set-conn-hint">
+            <option value="auto" data-i18n="connAuto">Auto</option>
+            <option value="relay" data-i18n="connRelayOnly">Relay only</option>
+            <option value="tcp" data-i18n="connRelayTcp">Relay only, over TCP</option>
+          </select>
+          <p class="ui-muted hint" id="set-conn-hint" data-i18n="connHint">
+            For both of you, this room only. Relay over TCP can get past networks that slow down calls and video.
+          </p>
+        </div>
+        <div class="field" id="set-visible-field">
+          <label class="check" for="set-visible">
+            <input id="set-visible" name="visible" type="checkbox" aria-describedby="set-visible-hint" />
+            <span data-i18n="visibleLabel">Visible to devices on my network</span>
+          </label>
+          <p class="ui-muted hint" id="set-visible-hint" data-i18n="visibleHint">
+            Devices on the same network that also turned this on see each other on the home page and can start a room
+            with a tap. While it is off, this device neither shows nor sees others.
+          </p>
+        </div>
+        <div class="field" id="set-name-field" hidden>
+          <label class="ui-label" for="set-name" data-i18n="deviceNameLabel">DEVICE NAME</label>
+          <input
+            class="ui-input"
+            id="set-name"
+            name="device-name"
+            autocomplete="off"
+            maxlength="32"
+            aria-describedby="set-name-hint"
+          />
+          <p class="ui-muted hint" id="set-name-hint" data-i18n="deviceNameHint">
+            The server sees this name and passes it to the devices on your network.
+          </p>
+        </div>
+        <div class="field" id="set-calm-field">
+          <label class="check" for="set-calm">
+            <input id="set-calm" name="calm" type="checkbox" aria-describedby="set-calm-hint" />
+            <span data-i18n="calmLabel">Disable animations</span>
+          </label>
+          <p class="ui-muted hint" id="set-calm-hint" data-i18n="calmHint">
+            Turn off the playful effects for transfers and room events. This browser only.
+          </p>
+        </div>
+        <div class="field" id="set-notify-field">
+          <label class="check" for="set-notify">
+            <input
+              id="set-notify"
+              name="notify"
+              type="checkbox"
+              aria-describedby="set-notify-hint set-notify-blocked"
+            />
+            <span data-i18n="notifyLabel">Notifications</span>
+          </label>
+          <p class="ui-muted hint" id="set-notify-hint" data-i18n="notifyHint">
+            A system notification when a transfer ends or a file is offered while this tab is in the background. This
+            browser only.
+          </p>
+          <p class="ui-field-error" id="set-notify-blocked" aria-live="polite" data-i18n="notifyBlocked" hidden>
+            Notifications are blocked in this browser. Allow them in the site settings, then try again.
+          </p>
+        </div>
+        <p class="ui-field-error" id="set-error" aria-live="polite" hidden></p>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" value="cancel" formnovalidate data-i18n="cancel">Cancel</button>
+          <button id="set-submit" class="ui-btn" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

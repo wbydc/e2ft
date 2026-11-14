@@ -1,0 +1,277 @@
+/* Core components: buttons, inputs, cards, alerts and type. They read only the tokens in tokens.css, so an assets
+   folder restyles them by replacing that file. */
+
+.ui-skip-link {
+  position: absolute;
+  left: var(--ui-space-4);
+  top: var(--ui-space-4);
+  z-index: 100;
+  padding: var(--ui-space-2) var(--ui-space-4);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+  font: 600 var(--ui-text-sm)/1.2 var(--ui-font-mono);
+  transform: translateY(-200%);
+}
+.ui-skip-link:focus-visible {
+  transform: none;
+  outline: 2px solid var(--ui-fg);
+  outline-offset: 2px;
+}
+
+.ui-backdrop {
+  position: relative;
+  isolation: isolate;
+  color: var(--ui-fg);
+  font: var(--ui-text-md)/1.55 var(--ui-font-sans);
+  background: var(--ui-backdrop-image), var(--ui-bg);
+}
+.ui-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--ui-grain);
+  background-image: var(--ui-grain-image);
+  background-size: var(--ui-grain-size);
+}
+
+.ui-card {
+  border-radius: var(--ui-radius-card);
+  padding: var(--ui-space-6);
+  background: var(--ui-glass-sheen), var(--ui-glass);
+  border: 1px solid var(--ui-glass-edge);
+  box-shadow: var(--ui-elevation);
+  -webkit-backdrop-filter: blur(var(--ui-glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--ui-glass-blur)) saturate(180%);
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ui-card {
+    background: var(--ui-input-bg);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ui-card {
+    background: var(--ui-input-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+.ui-h1,
+.ui-h2 {
+  margin: 0;
+  font-family: var(--ui-font-heading);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  scroll-margin-top: var(--ui-space-6);
+}
+.ui-h1 {
+  font-size: var(--ui-text-2xl);
+  line-height: 1.15;
+}
+.ui-h2 {
+  font-size: var(--ui-text-xl);
+  line-height: 1.2;
+}
+.ui-muted {
+  color: var(--ui-muted);
+}
+.ui-label {
+  font: 500 var(--ui-text-xs)/1.2 var(--ui-font-mono);
+  letter-spacing: 0.04em;
+  color: var(--ui-muted);
+}
+
+.ui-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--ui-size-control);
+  padding: 0 13px;
+  font: var(--ui-text-md) var(--ui-font-sans);
+  color: var(--ui-fg);
+  background: var(--ui-input-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+}
+.ui-input {
+  touch-action: manipulation;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.ui-input:hover {
+  border-color: var(--ui-fg);
+}
+/* The ring replaces the outline; text inputs match :focus-visible on click too, so the ring shows whenever typing is possible. */
+.ui-input:focus-visible {
+  outline: none;
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 3px var(--ui-ring);
+} /* check-ui: ok, ring replaces outline */
+.ui-input[aria-invalid="true"] {
+  border-color: var(--ui-danger);
+}
+.ui-input::placeholder {
+  color: var(--ui-muted);
+}
+.ui-field-error {
+  margin: var(--ui-space-1) 0 0;
+  padding: 2px var(--ui-space-2);
+  border-radius: 6px;
+  width: fit-content;
+  font-size: var(--ui-text-sm);
+  background: var(--ui-danger-bg);
+  color: var(--ui-danger-fg);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-space-2);
+  height: var(--ui-size-control);
+  padding: 0 var(--ui-space-5);
+  font: 600 var(--ui-text-sm)/1 var(--ui-font-mono);
+  letter-spacing: 0.02em;
+  border-radius: var(--ui-radius-control);
+  border: 0;
+  cursor: pointer;
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+  box-shadow: 0 6px 18px -8px var(--ui-accent);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
+}
+.ui-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-accent) 86%, var(--ui-fg));
+}
+.ui-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.ui-btn[aria-busy="true"] {
+  cursor: progress;
+}
+.ui-btn[aria-busy="true"]::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: ui-spin 0.7s linear infinite;
+}
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ui-btn:focus-visible {
+  outline: 2px solid var(--ui-fg);
+  outline-offset: 2px;
+}
+.ui-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ui-btn--secondary {
+  background: transparent;
+  color: var(--ui-fg);
+  box-shadow: inset 0 0 0 1px var(--ui-border);
+}
+.ui-btn--danger {
+  background: var(--ui-danger);
+  color: var(--ui-on-danger);
+  box-shadow: none;
+}
+.ui-btn--secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-fg) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ui-fg);
+}
+.ui-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-danger) 86%, var(--ui-fg));
+}
+.ui-btn--sm {
+  height: var(--ui-size-control-sm);
+  padding: 0 var(--ui-space-4);
+}
+
+.ui-link {
+  color: var(--ui-link);
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--ui-link) 40%, transparent);
+}
+.ui-link:hover {
+  text-decoration-color: currentColor;
+}
+.ui-link:focus-visible {
+  outline: 2px solid var(--ui-link);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.ui-link {
+  touch-action: manipulation;
+  overflow-wrap: anywhere;
+}
+
+.ui-alert {
+  overflow-wrap: break-word;
+  padding: 10px 12px;
+  border-radius: var(--ui-radius-control);
+  font-size: var(--ui-text-sm);
+  background: var(--ui-info-bg);
+  color: var(--ui-info-fg);
+}
+.ui-alert--success {
+  background: var(--ui-success-bg);
+  color: var(--ui-success-fg);
+}
+.ui-alert--warning {
+  background: var(--ui-warning-bg);
+  color: var(--ui-warning-fg);
+}
+.ui-alert--danger {
+  background: var(--ui-danger-bg);
+  color: var(--ui-danger-fg);
+}
+
+.ui-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
+  flex: none;
+}
+
+.ui-num {
+  font-variant-numeric: tabular-nums;
+}
+.ui-truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn,
+  .ui-input {
+    transition: none;
+  }
+  .ui-btn:active:not(:disabled) {
+    transform: none;
+  }
+  .ui-btn[aria-busy="true"]::after {
+    animation: none;
+    border-right-color: currentColor;
+    opacity: 0.6;
+  }
+}
