@@ -7,6 +7,17 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- A connection that dropped just as a chunk went out could end the room on the sending side instead of pausing the
+  transfer for the reconnect.
+- A browser that saves through its private storage (Firefox with Service Workers off) could decline a file offered in
+  the first seconds after the page loaded, saying it can't save files.
+
+### Changed
+
+- CI runs the end-to-end tests as three parallel shards and lists each test's duration.
+
 ## [0.14.9] - 2026-11-14
 
 ### Changed
