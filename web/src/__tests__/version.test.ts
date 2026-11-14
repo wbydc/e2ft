@@ -15,3 +15,11 @@ test("the Helm chart's version and appVersion equal Cargo.toml's", () => {
   assert.equal(chart.match(/^version: (.+)$/m)?.[1], crate, "bump ops/helm/e2ft/Chart.yaml version too");
   assert.equal(chart.match(/^appVersion: "(.+)"$/m)?.[1], crate, "bump ops/helm/e2ft/Chart.yaml appVersion too");
 });
+
+test("docker-compose.yml runs the release image of Cargo.toml's version", () => {
+  const crate = readFileSync(new URL("../../../Cargo.toml", import.meta.url), "utf8").match(/^version = "(.+)"$/m)?.[1];
+  const compose = readFileSync(new URL("../../../ops/docker/docker-compose.yml", import.meta.url), "utf8");
+  const image = "ghcr.io/wbydc/e2ft:";
+  const pinned = compose.slice(compose.indexOf(image) + image.length).match(/^[^}\s]+/)?.[0];
+  assert.equal(pinned, crate, "bump the image in ops/docker/docker-compose.yml too");
+});

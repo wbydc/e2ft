@@ -1,6 +1,5 @@
 image:
-  # The published chart names the image released with it; from a checkout, set it to your own build.
-  repository: e2ft
+  repository: ghcr.io/wbydc/e2ft
   # Defaults to the chart's appVersion.
   tag: ""
   pullPolicy: IfNotPresent

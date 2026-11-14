@@ -65,15 +65,11 @@ jobs:
       - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
           version: v4.3.2
-      # The packaged chart defaults to the image this run pushed; the repo copy names no registry owner.
       - name: Publish the chart
         env:
           VERSION: ${{ steps.version.outputs.version }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          repository="${GITHUB_REPOSITORY,,}"
-          sed -i "s|^  repository: e2ft$|  repository: ghcr.io/$repository|" ops/helm/e2ft/values.yaml
-          grep -qx "  repository: ghcr.io/$repository" ops/helm/e2ft/values.yaml
           helm package ops/helm/e2ft --destination "$RUNNER_TEMP"
           echo "$REGISTRY_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           helm push "$RUNNER_TEMP/e2ft-$VERSION.tgz" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts"

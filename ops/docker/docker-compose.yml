@@ -4,11 +4,8 @@ name: e2ft
 
 services:
   e2ft:
-    # Built from this checkout unless E2FT_IMAGE names a published release image.
-    image: ${E2FT_IMAGE:-localhost/e2ft}
-    build:
-      context: ../..
-      dockerfile: ops/docker/Dockerfile
+    # The release this file ships with; E2FT_IMAGE runs another, such as your own build.
+    image: ${E2FT_IMAGE:-ghcr.io/wbydc/e2ft:0.14.9}
     # Rooms live in this one process's memory: never scale it past one.
     restart: unless-stopped
     ports:

@@ -220,11 +220,11 @@ For `turns:`, enable TLS in coturn, usually on port 5349 with a certificate, and
 ```bash
 cd ops/docker
 cp .env.example .env   # set TURN_HOST and TURN_SECRET
-docker compose up -d --build
+docker compose up -d
 ```
 
-Compose refuses to start without `TURN_SECRET` and `TURN_HOST`. `--build` builds this checkout; set `E2FT_IMAGE` in
-`.env` to run a published image instead. coturn runs on the host network, because relay addresses must be the host's
+Compose refuses to start without `TURN_SECRET` and `TURN_HOST`. It runs the release image of this checkout's version
+from `ghcr.io/wbydc/e2ft`; to run your own build, build it (see Build and run) and set `E2FT_IMAGE` in `.env`. coturn runs on the host network, because relay addresses must be the host's
 own, so this works on Linux and not on Docker Desktop. Its settings are in `ops/docker/turnserver.conf`; the secret
 and realm are added in memory when it starts and never appear in a command line. Open the TURN ports above in the
 firewall. The app listens on `127.0.0.1:8080`; put a TLS reverse proxy in front of it (below). `podman compose`
@@ -252,7 +252,8 @@ holds the TURN shared secret (`turn.secret` makes one for you). coturn is off by
 
 Without coturn, `turn.urls` points the app at a TURN server you run elsewhere. Set `trustedProxies` to your ingress
 controller's pod addresses for same-network discovery, and `assets.configMap` for branding. `values.yaml` lists
-every setting. From a checkout, install `ops/helm/e2ft` with `--set image.repository=<your image>`.
+every setting. The chart runs `ghcr.io/wbydc/e2ft` at the chart's version; `image.repository` and `image.tag` run
+your own build.
 
 ### Reverse proxy
 
