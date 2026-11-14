@@ -11,7 +11,7 @@ base64 = "0.22"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 hmac = "0.12"
 # The TURN long-term credential key in the health check; on the same digest release as hmac and sha1.
-md-5 = "0.10"
+md-5 = "0.11"
 mime_guess = "2"
 rust-embed = { version = "8", features = ["mime-guess"] }
 serde = { version = "1", features = ["derive"] }
