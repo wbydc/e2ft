@@ -9,7 +9,7 @@ ARG CHUNK_SIZE WINDOW MAX_DIRECT TURN_QUOTA BUFFER_HIGH BUFFER_LOW STEP_MS GAIN 
     ACCESS_LEN SECRET_LEN KEEP_ALIVES KEEP_ALIVE
 RUN npm run build
 
-FROM rust:1.98.1-slim-bookworm AS server
+FROM rust:1.99.1-slim-bookworm AS server
 WORKDIR /app
 ENV E2FT_WEB_PREBUILT=1
 COPY Cargo.toml Cargo.lock build.rs ./
