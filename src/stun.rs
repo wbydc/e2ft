@@ -56,6 +56,8 @@ fn set_length(message: &mut [u8], extra: usize) {
 
 /// The long-term credential key: MD5(username ":" realm ":" password).
 pub fn long_term_key(username: &str, realm: &[u8], password: &str) -> [u8; 16] {
+    // MD5 is what the TURN long-term credential mechanism specifies; the key only authenticates to coturn.
+    // nosemgrep: rust.lang.security.insecure-hashes.insecure-hashes
     let mut md5 = Md5::new();
     md5.update(username.as_bytes());
     md5.update(b":");
