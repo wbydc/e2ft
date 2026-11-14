@@ -7,6 +7,12 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+## [0.14.9] - 2026-11-14
+
+### Changed
+
+- The README shows how to run a published release image.
+
 ## [0.14.8] - 2026-11-14
 
 ### Added
