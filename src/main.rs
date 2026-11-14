@@ -51,6 +51,8 @@ struct App {
 
 #[tokio::main]
 async fn main() {
+    // Only a flag is read, never argv[0], and nothing depends on it for security.
+    // nosemgrep: rust.lang.security.args-os.args-os
     if std::env::args_os().skip(1).any(|arg| arg == "--health") {
         std::process::exit(health::run());
     }
