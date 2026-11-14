@@ -1,7 +1,7 @@
 # The pipeline every pull request and every push to main must pass, one stage per file, each waiting for the one
 # before: security, lint, build, test. A release tag vX.Y.Z then publishes the image and the chart. The ruleset
 # requires every job by name: a failed job reports itself, the jobs after it are skipped.
-name: check
+name: ci
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: check-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

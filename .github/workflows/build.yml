@@ -1,4 +1,4 @@
-# Stage 3: the server with the embedded frontend, and the production image. Called by check.yml.
+# Stage 3: the server with the embedded frontend, and the production image. Called by ci.yml.
 name: build
 
 on:

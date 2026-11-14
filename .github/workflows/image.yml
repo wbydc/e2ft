@@ -1,4 +1,4 @@
-# Stage 5, release tags vX.Y.Z only: publishes the neutral image and the Helm chart. Called by check.yml once every
+# Stage 5, release tags vX.Y.Z only: publishes the neutral image and the Helm chart. Called by ci.yml once every
 # other stage passed.
 name: image
 

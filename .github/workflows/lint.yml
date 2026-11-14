@@ -1,4 +1,4 @@
-# Stage 2: one job per check, frontend (web/package.json scripts) and server. Called by check.yml.
+# Stage 2: one job per check, frontend (web/package.json scripts) and server. Called by ci.yml.
 name: lint
 
 on:

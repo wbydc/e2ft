@@ -1,4 +1,4 @@
-# Stage 4: one job per suite; the TURN ones each run against their own loopback coturns. Called by check.yml.
+# Stage 4: one job per suite; the TURN ones each run against their own loopback coturns. Called by ci.yml.
 name: test
 
 on:

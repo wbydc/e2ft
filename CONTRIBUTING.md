@@ -34,7 +34,7 @@ CI also runs these. Run them locally when your change touches what they cover:
 - Follow the conventions in the code around your change. The style checks enforce most of them.
 - Update `README.md` or `docs/` when your change makes them wrong, and add a line under `Unreleased` in
   `CHANGELOG.md` for anything a user would notice.
-- The `check` workflow must pass and a maintainer must approve. Pull requests are squash-merged, so the title becomes
+- The `ci` workflow must pass and a maintainer must approve. Pull requests are squash-merged, so the title becomes
   the commit message.
 
 By contributing you agree that your work is licensed under the AGPL-3.0, the project's license (`LICENSE`).

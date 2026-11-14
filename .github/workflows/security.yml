@@ -1,4 +1,4 @@
-# Stage 1: one job per scanner; any finding fails it. Called by check.yml.
+# Stage 1: one job per scanner; any finding fails it. Called by ci.yml.
 name: security
 
 on:
