@@ -102,7 +102,7 @@ browser through the relay, add `?relay=1` to the page URL.
 ### Build and run
 
 ```bash
-podman build -f ops/docker/Dockerfile -t e2ft .
+podman build --format docker -f ops/docker/Dockerfile -t e2ft .
 podman run --rm -p 8080:8080 e2ft
 ```
 
@@ -115,6 +115,15 @@ podman run --rm -p 8080:8080 ghcr.io/wbydc/e2ft:<version>
 
 `docker build` and `docker run` work the same way. The image listens on `0.0.0.0:8080` and runs as a nonroot user.
 Open <http://localhost:8080>.
+
+The image declares a health check: every 30 seconds `/e2ft --health` asks the server for its page, then makes and at
+once frees one allocation on each TURN server in `TURN_URLS` with a credential signed from `TURN_SECRET`. It fails
+when the server does not answer, a TURN server is down, or its secret differs from coturn's, and prints the failed
+step (`docker inspect --format '{{json .State.Health}}' <container>`). Podman keeps the health check only in images
+built with `--format docker`, as above. The check reaches TURN from inside the container: when the TURN host's public
+address is not reachable from there (a router without hairpin NAT), make its name resolve to the host inside the
+container, for example `extra_hosts: ["turn.example.com:host-gateway"]` on the compose service. Keep `TURN_URLS`
+public, since browsers get the same list.
 
 Rooms exist only in the memory of the process that created them. Run one instance, since a restart ends the open
 rooms and a second instance would not see the first one's rooms.
@@ -228,7 +237,8 @@ Compose refuses to start without `TURN_SECRET` and `TURN_HOST`. It runs the rele
 from `ghcr.io/wbydc/e2ft`; to run your own build, build it (see Build and run) and set `E2FT_IMAGE` in `.env`. coturn
 runs on the host network, because relay addresses must be the host's own, so this works on Linux and not on Docker
 Desktop. Its settings are in `ops/docker/turnserver.conf`; the secret and realm are added in memory when it starts and
-never appear in a command line. A STUN request checks coturn's health every 30 seconds (`docker compose ps`). Open the
+never appear in a command line. A STUN request checks coturn's health every 30 seconds, and the app's own check (above) also
+makes a TURN allocation with the shared secret, so `docker compose ps` shows a stopped coturn or a mismatched secret. Open the
 TURN ports above in the firewall. The app listens on `127.0.0.1:8080`; put a TLS reverse proxy in front of it (below).
 `podman compose` works the same way.
 

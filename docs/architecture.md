@@ -35,7 +35,7 @@ One axum binary. Each file has one role.
 
 | File | Role |
 |---|---|
-| `src/main.rs` | Builds the shared `App` state (rooms, peer id counter, ICE settings, metrics counters), the routers and the optional metrics listener, and handles SIGTERM and SIGINT. |
+| `src/main.rs` | Runs the health check for `--health`; otherwise builds the shared `App` state (rooms, peer id counter, ICE settings, metrics counters), the routers and the optional metrics listener, and handles SIGTERM and SIGINT. |
 | `src/config.rs` | Reads `ADDR`, `METRICS`, `METRICS_ADDR`, `ASSETS_DIR`, `TRUSTED_PROXIES`, `ROOM_WAIT` and `ROOMS_PER_CLIENT` from the environment. |
 | `src/assets.rs` | Builds the table of every served file at startup: the frontend embedded by `rust-embed`, the optional assets folder over it, the content stamps in `index.html` and `app.js`, the page slots and the version. |
 | `src/http.rs` | Serves that table, the stamped asset cache rules, the optional legal pages, and the security headers. |
@@ -46,6 +46,8 @@ One axum binary. Each file has one role.
 | `src/lobby.rs` | Pure discovery state: the visible home pages grouped by a keyed hash of their network, the address rules that decide whether an address may form a group, the name bounds, and the rate for one frame type. |
 | `src/discover.rs` | The `/discover` endpoint: finds the client address (socket peer, or `X-Forwarded-For` behind trusted proxies), enters the page into its group, announces the group on every change, and passes asks and answers inside one group; an answer reaches only a page whose ask is still open. Its pings and idle timeout are shorter than `/ws`'s, and a socket that sends `hello` or `ask` too fast is closed. |
 | `src/ice.rs` | Builds the ICE server list from `STUN_URLS` and `TURN_URLS`, with TURN credentials. |
+| `src/health.rs` | `e2ft --health`, the image's health check: one `GET /` to `ADDR`, then for each TURN server a Binding, a signed Allocate and a zero-lifetime Refresh. Exits 0 or 1, never prints the secret or the credential. |
+| `src/stun.rs` | Pure STUN and TURN message encoding for the health check: the header, attributes, `MESSAGE-INTEGRITY` with the long-term key, and the reply's error code. |
 | `src/metrics.rs` | Counters, gauges and the Prometheus text for `GET /metrics`. |
 
 ### HTTP surface

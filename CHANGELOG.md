@@ -15,6 +15,9 @@ an older peer stop working). A patch has only fixes.
 - `ops/docker/docker-compose.yml` runs the app with its own coturn relay on one Linux host.
 - A Helm chart in `ops/helm/e2ft/`, with an optional coturn on a node's network or behind a load balancer. Each
   release publishes it as an OCI chart next to the image.
+- `e2ft --health` checks a running server and each TURN server it hands out (a signed allocation, freed at once), and
+  the image declares it as its `HEALTHCHECK`, so `docker ps` shows a stopped coturn or a `TURN_SECRET` that differs
+  from coturn's.
 
 ### Changed
 

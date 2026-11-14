@@ -117,6 +117,8 @@ jobs:
         working-directory: web
         env:
           E2E_TURN: "1"
+      # The health check's TURN tests against the shared-secret coturn.
+      - run: cargo test --locked -- --ignored
       - run: npm run integration
         working-directory: web
       - if: failure()
