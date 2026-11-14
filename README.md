@@ -59,7 +59,8 @@ as trusted input.
 - Your own TURN server, sharing that server with the other person, an always-on relay option, and rooms forced to
   relay only or relay over TCP.
 - Keep-alive of Off, 1, 5, 15 or 30 minutes.
-- English and Russian UI, system, light or dark theme, optional animations, optional system notifications, and transfer speed in bytes or bits per second.
+- English and Russian UI, system, light or dark theme, optional animations, optional system notifications, and
+  transfer speed in bytes or bits per second.
 - Optional Prometheus metrics on a separate address.
 
 ## Requirements
@@ -97,8 +98,14 @@ podman build -t e2ft .
 podman run --rm -p 8080:8080 e2ft
 ```
 
-Each release also publishes this image to the GitHub container registry of this repository, tagged with the
-version and `latest` (see its Packages page). `docker build` and `docker run` work the same way. The image listens on `0.0.0.0:8080` and runs as a nonroot user.
+Or run a published release: each release tag publishes the same image to the GitHub container registry of this
+repository, tagged with the version and `latest` (see its Packages page for the full name):
+
+```bash
+podman run --rm -p 8080:8080 ghcr.io/<owner>/e2ft:<version>
+```
+
+`docker build` and `docker run` work the same way. The image listens on `0.0.0.0:8080` and runs as a nonroot user.
 Open <http://localhost:8080>.
 
 Rooms exist only in the memory of the process that created them. Run one instance, since a restart ends the open
