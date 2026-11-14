@@ -1,0 +1,128 @@
+# Stage 4: one job per suite; the TURN ones each run against their own loopback coturns. Called by check.yml.
+name: test
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  web-unit:
+    runs-on: ubuntu-24.04
+    container: node:24.22.2-bookworm-slim
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npm ci
+      - run: npm test
+
+  rust-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node
+      - uses: ./.github/actions/rust
+        with:
+          cache: debug
+      - run: cargo test --locked
+
+  # The e2e suite split over three runners, each with its own server.
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node
+      - uses: ./.github/actions/rust
+        with:
+          cache: release
+      - run: npx playwright install --with-deps chromium firefox
+        working-directory: web
+      - run: npx playwright test --shard=${{ matrix.shard }}/3
+        working-directory: web
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-results-${{ matrix.shard }}
+          path: web/test-results/
+          retention-days: 7
+
+  # The own-TURN settings specs against the static-user coturns.
+  turn-settings:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node
+      - uses: ./.github/actions/rust
+        with:
+          cache: release
+      - uses: ./.github/actions/coturn
+      - run: npx playwright install --with-deps chromium firefox
+        working-directory: web
+      - run: npx playwright test tests/e2e/settings.spec.ts
+        working-directory: web
+        env:
+          E2E_TURN: "1"
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: turn-settings-results
+          path: web/test-results/
+          retention-days: 7
+
+  # The health check's TURN tests against the shared-secret coturn.
+  turn-health:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node
+      - uses: ./.github/actions/rust
+        with:
+          cache: debug
+      - uses: ./.github/actions/coturn
+      - run: cargo test --locked -- --ignored
+
+  # The relay through a real coturn with the credentials the server signs.
+  turn-relay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node
+      - uses: ./.github/actions/rust
+        with:
+          cache: release
+      - uses: ./.github/actions/coturn
+      - run: npx playwright install --with-deps chromium firefox
+        working-directory: web
+      - run: npm run integration
+        working-directory: web
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: turn-relay-results
+          path: web/test-results/
+          retention-days: 7

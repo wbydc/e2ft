@@ -1,0 +1,16 @@
+# The three loopback coturns the TURN tests need (web/scripts/coturn.sh), on the job's own runner.
+name: coturn
+description: Install coturn and start the test coturns.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends coturn=4.6.1-1build4
+        # The package starts a system coturn on 3478; the tests start their own.
+        sudo systemctl stop coturn || true
+    - shell: bash
+      working-directory: web
+      run: scripts/coturn.sh start

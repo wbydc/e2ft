@@ -1,0 +1,56 @@
+# Stage 1: one job per scanner; any finding fails it. Called by check.yml.
+name: security
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-24.04
+    container: zricethezav/gitleaks:v8.30.1
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history: catches a secret added and later removed on a branch.
+          fetch-depth: 0
+      - run: gitleaks git --redact --verbose --exit-code 1 .
+
+  semgrep:
+    runs-on: ubuntu-24.04
+    container: semgrep/semgrep:1.185.0
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: semgrep scan --config p/default --config p/typescript --config p/rust --error --metrics=off .
+
+  # The full image: cargo-audit builds against its pkg-config and OpenSSL.
+  cargo-audit:
+    runs-on: ubuntu-24.04
+    container: rust:1.98.1-bookworm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo install cargo-audit --version 0.23.0 --locked --quiet && cargo audit
+
+  # Dev dependencies too: they run in CI and on contributors' machines.
+  npm-audit:
+    runs-on: ubuntu-24.04
+    container: node:24.22.2-bookworm-slim
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npm audit

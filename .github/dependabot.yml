@@ -2,7 +2,8 @@ version: 2
 # A new release waits a week before it is proposed: time for a compromised or broken one to be pulled.
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    # The workflows, and the shared setup steps they use.
+    directories: [/, /.github/actions/*]
     schedule:
       interval: weekly
     cooldown:
