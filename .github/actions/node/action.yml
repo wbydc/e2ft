@@ -1,0 +1,21 @@
+# Node at the version ops/docker/Dockerfile builds with, with the npm cache, and web/'s dependencies.
+name: node
+description: Node with web/node_modules installed.
+
+inputs:
+  install:
+    description: Run npm ci in web/.
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 24.22.2
+        cache: npm
+        cache-dependency-path: web/package-lock.json
+    - if: inputs.install == 'true'
+      shell: bash
+      working-directory: web
+      run: npm ci

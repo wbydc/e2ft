@@ -1,5 +1,6 @@
-# The gate every pull request and every push to main must pass, in stages: security, lint, build, tests. A release
-# tag vX.Y.Z runs the same stages, then publishes the image and the chart.
+# The pipeline every pull request and every push to main must pass, one stage per file, each waiting for the one
+# before: security, lint, build, test. A release tag vX.Y.Z then publishes the image and the chart. The ruleset
+# requires every job by name: a failed job reports itself, the jobs after it are skipped.
 name: check
 
 on:
@@ -15,239 +16,27 @@ concurrency:
   group: check-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  # The same toolchains ops/docker/Dockerfile builds with, so the gate and the image agree.
-  NODE_VERSION: 24.22.2
-  RUST_VERSION: 1.98.1
-  CARGO_TERM_COLOR: always
-
 jobs:
-  # Stage 1. Any finding fails the job.
   security:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          # Full history: catches a secret added and later removed on a branch.
-          fetch-depth: 0
-      # As the runner user, so git inside the container trusts the checkout.
-      - name: gitleaks
-        run: docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 git --redact --verbose --exit-code 1 .
-      - name: semgrep
-        run: >-
-          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/src" -w /src semgrep/semgrep:1.185.0
-          semgrep scan --config p/default --config p/typescript --config p/rust --error --metrics=off .
-      - run: rustup toolchain install "$RUST_VERSION" --profile minimal && rustup default "$RUST_VERSION"
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - name: cargo audit
-        run: cargo install cargo-audit --version 0.23.0 --locked --quiet && cargo audit
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      # Dev dependencies too: they run in CI and on contributors' machines.
-      - name: npm audit
-        run: npm audit
-        working-directory: web
+    uses: ./.github/workflows/security.yml
 
-  # Stage 2. npm run check also runs the frontend unit tests.
   lint:
     needs: security
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy && rustup default "$RUST_VERSION"
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: npm ci
-        working-directory: web
-      - run: npm run check
-        working-directory: web
-      - run: cargo clippy --locked --all-targets -- -D warnings
+    uses: ./.github/workflows/lint.yml
 
-  # Stage 3. The server with the embedded frontend, and the production image (not pushed; its cache serves stage 5).
   build:
     needs: lint
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: rustup toolchain install "$RUST_VERSION" --profile minimal && rustup default "$RUST_VERSION"
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: npm ci
-        working-directory: web
-      - run: cargo build --locked --all-targets
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: ops/docker/Dockerfile
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    uses: ./.github/workflows/build.yml
 
-  # Stage 4. The e2e suite split over three runners, each with its own server.
-  e2e:
+  test:
     needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: rustup toolchain install "$RUST_VERSION" --profile minimal && rustup default "$RUST_VERSION"
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: npm ci
-        working-directory: web
-      - run: npx playwright install --with-deps chromium firefox
-        working-directory: web
-      - run: npx playwright test --shard=${{ matrix.shard }}/3
-        working-directory: web
-      - if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: e2e-results-${{ matrix.shard }}
-          path: web/test-results/
-          retention-days: 7
+    uses: ./.github/workflows/test.yml
 
-  # Stage 4. The relay through a real coturn with server-signed credentials, and the specs that need a local coturn. coturn
-  # runs on the job's own loopback.
-  integration:
-    needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - run: rustup toolchain install "$RUST_VERSION" --profile minimal && rustup default "$RUST_VERSION"
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends coturn=4.6.1-1build4
-          # The package starts a system coturn on 3478; the specs start their own.
-          sudo systemctl stop coturn || true
-      - run: npm ci
-        working-directory: web
-      - run: npx playwright install --with-deps chromium firefox
-        working-directory: web
-      - run: scripts/coturn.sh start
-        working-directory: web
-      - run: npx playwright test tests/e2e/settings.spec.ts
-        working-directory: web
-        env:
-          E2E_TURN: "1"
-      # The unit tests, and the health check's TURN tests against the shared-secret coturn.
-      - run: cargo test --locked -- --include-ignored
-      - run: npm run integration
-        working-directory: web
-      - if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: integration-results
-          path: web/test-results/
-          retention-days: 7
-
-  # The one required check over every stage. It runs even when one fails, since a skipped required check counts as
-  # passed; a failed stage skips the later ones, so a skip fails it too.
-  check:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    needs: [security, lint, build, e2e, integration]
-    if: always()
-    steps:
-      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
-        run: exit 1
-      - run: echo "all stages passed"
-
-  # Stage 5, release tags vX.Y.Z only: the neutral image and the Helm chart.
+  # Release tags only, after every stage passed.
   image:
-    needs: check
+    needs: test
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Tag matches Cargo.toml
-        id: version
-        run: |
-          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "tag $GITHUB_REF_NAME does not match Cargo.toml version $version" >&2
-            exit 1
-          fi
-          if ! grep -qx "version: $version" ops/helm/e2ft/Chart.yaml || ! grep -qx "appVersion: \"$version\"" ops/helm/e2ft/Chart.yaml; then
-            echo "ops/helm/e2ft/Chart.yaml version or appVersion is not $version" >&2
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest
-          labels: |
-            org.opencontainers.image.title=e2ft
-            org.opencontainers.image.licenses=AGPL-3.0
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: ops/docker/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
-        with:
-          version: v4.3.2
-      - name: Publish the chart
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          helm package ops/helm/e2ft --destination "$RUNNER_TEMP"
-          echo "$REGISTRY_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          helm push "$RUNNER_TEMP/e2ft-$VERSION.tgz" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts"
+    uses: ./.github/workflows/image.yml

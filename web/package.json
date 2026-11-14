@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "rm -rf dist && mkdir -p dist && cp -r public/. dist/ && node scripts/build.mjs",
-    "check": "tsc --noEmit && oxfmt --check && npm run lint && node scripts/check-style.mjs src tests && node --experimental-transform-types --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts' 'scripts/**/*.test.mjs'",
+    "check": "npm run typecheck && npm run fmt:check && npm run lint && npm run style && npm test",
+    "typecheck": "tsc --noEmit",
+    "fmt:check": "oxfmt --check",
+    "style": "node scripts/check-style.mjs src tests",
+    "test": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts' 'scripts/**/*.test.mjs'",
     "lint": "oxlint --deny-warnings --report-unused-disable-directives",
     "fmt": "oxfmt",
     "e2e": "playwright test",

@@ -1,0 +1,29 @@
+# Rust at the version ops/docker/Dockerfile builds with, and the cargo cache. Building the server runs build.rs,
+# which needs the node action first.
+name: rust
+description: Rust with the cargo cache.
+
+inputs:
+  components:
+    description: Extra rustup components, comma-separated.
+    default: ""
+  cache:
+    description: Cache key; jobs that build the same profile share one.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RUST_VERSION: 1.98.1
+        COMPONENTS: ${{ inputs.components }}
+      run: |
+        rustup toolchain install "$RUST_VERSION" --profile minimal ${COMPONENTS:+--component "$COMPONENTS"}
+        rustup default "$RUST_VERSION"
+        echo CARGO_TERM_COLOR=always >> "$GITHUB_ENV"
+    # Only main writes the cache, so pull requests read one fresh copy instead of each filling the 10 GB quota.
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        shared-key: ${{ inputs.cache }}
+        save-if: ${{ github.ref == 'refs/heads/main' }}
