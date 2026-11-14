@@ -170,7 +170,7 @@ Cancelling the download in the browser's own download list counts as cancelling 
 ## Progress and cancel
 
 Each direction has its own row. `SENDING` and `RECEIVING` label the rows, and each row shows the file name, a progress
-bar, `<done> of <total>`, the average speed and, after about 3 seconds of moving bytes, `<time> left`. The rows redraw
+bar, `<done> of <total>`, the speed over the last few seconds and, after about 3 seconds of moving bytes, `<time> left`. The rows redraw
 at most 4 times a second and the bar glides between redraws. When a row is paused it shows
 `<done> of <total> · Paused, waiting for the connection…` and only the cancel button.
 

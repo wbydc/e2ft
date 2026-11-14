@@ -13,6 +13,11 @@ an older peer stop working). A patch has only fixes.
   also switched by clicking a transfer's progress text. In Russian the speed now reads in Russian units ("МБ/c")
   instead of ending in "/s".
 
+### Changed
+
+- A transfer's speed is the rate over the last 8 seconds, the same one its time left uses, instead of the average
+  since the start, so it follows the transfer as it speeds up or slows down.
+
 ## [0.14.9] - 2026-11-14
 
 ### Changed
