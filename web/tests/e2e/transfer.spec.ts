@@ -125,15 +125,15 @@ test("Firefox without Service Workers saves through OPFS", async () => {
   await expect(joiner.page.locator("#conn-detail")).toContainText("This side: host");
 });
 
-// Flaky, its 5 s default wait for "received. Tap Save" sometimes times out under load; skipped until fixed.
-test.skip("iPhone keeps a received file until Save, which hands over the whole file", async () => {
+test("iPhone keeps a received file until Save, which hands over the whole file", async () => {
   const { a: creator, b: joiner } = await connectedPair(await launch("iphone"));
   await expect(joiner.page.locator("#ios-note")).toBeVisible();
   const file = await makeFile("to-iphone.bin", 8 << 20);
   await creator.page.setInputFiles("#file", file.path);
   await expect(joiner.page.locator("#offer-accept")).toHaveText("Receive");
   await joiner.page.click("#offer-accept");
-  await expect(status(joiner)).toContainText("to-iphone.bin received. Tap Save");
+  // The whole 8 MB arrives before this text, which can take longer than the default wait under load.
+  await expect(status(joiner)).toContainText("to-iphone.bin received. Tap Save", { timeout: 60_000 });
   await expect(status(creator)).toContainText("was saved by the other person");
   const save = joiner.page.locator("#history .hist").first().getByRole("button", { name: "Save" });
   await expect(save).toBeEnabled();
@@ -181,6 +181,39 @@ test("both rows show the time left only after about 3 s of moving bytes, and in 
   await joiner.page.selectOption("#lang", "ru");
   await expect(joiner.page.locator("#in-text")).toContainText("осталось");
   await joiner.page.click("#in-cancel");
+});
+
+test("the speed shows in bits once Settings says so, after a reload too; a click or Enter on the progress text flips both rows and is kept", async () => {
+  test.setTimeout(120_000);
+  const joiner = await launch();
+  await joiner.page.goto("/");
+  await joiner.page.getByRole("button", { name: "Settings" }).click();
+  await joiner.page.locator("#set-speed").selectOption("bit");
+  await joiner.page.locator("#set-submit").click();
+  await joiner.page.reload();
+  await joiner.page.getByRole("button", { name: "Settings" }).click();
+  await expect(joiner.page.locator("#set-speed")).toHaveValue("bit");
+  await joiner.page.getByRole("button", { name: "Cancel" }).click();
+
+  const { a: creator } = await connectedPair(joiner);
+  await midTransfer(creator, joiner, "bits.bin");
+  await offerAndAccept(joiner, creator, "back.bin", CANCEL_SIZE);
+  const bits = / [kMG]?b\/s/;
+  const bytes = / [kMG]?B\/s/;
+  await expect(creator.page.locator("#out-text")).toContainText(bytes);
+  for (const id of ["#in-text", "#out-text"]) await expect(joiner.page.locator(id)).toContainText(bits);
+
+  await joiner.page.locator("#in-text").focus();
+  await joiner.page.keyboard.press("Enter");
+  for (const id of ["#in-text", "#out-text"]) await expect(joiner.page.locator(id)).toContainText(bytes);
+  await creator.page.locator("#out-text").click();
+  await expect(creator.page.locator("#out-text")).toContainText(bits);
+
+  await joiner.page.click("#in-cancel");
+  await joiner.page.click("#out-cancel");
+  await joiner.page.goto("/");
+  await joiner.page.getByRole("button", { name: "Settings" }).click();
+  await expect(joiner.page.locator("#set-speed")).toHaveValue("byte");
 });
 
 test("sender cancels: both stop, the partial file is removed, the room still works; the bars glide between renders", async () => {

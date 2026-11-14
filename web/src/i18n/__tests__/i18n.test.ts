@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { detectLang, fmtLeft, LANGS } from "../index.ts";
+import { detectLang, fmtLeft, fmtRate, LANGS, setLang } from "../index.ts";
 
 const html = readFileSync(new URL("../../../public/index.html", import.meta.url), "utf8");
 const keys = [...html.matchAll(/data-i18n(?:-placeholder|-aria-label|-title)?="([^"]+)"/g)].map((m) => m[1]);
@@ -46,4 +46,41 @@ test("time left: M:SS under an hour, H:MM:SS from one hour, seconds rounded up",
     [36000, "10:00:00"],
   ];
   for (const [secs, want] of cases) assert.equal(fmtLeft(secs), want, `${secs}s`);
+});
+
+test("speed: bytes or bits per second, stepping up at 1000, in English and Russian", () => {
+  const globals = globalThis as Record<string, unknown>;
+  Object.defineProperty(globals, "document", {
+    value: { documentElement: {}, querySelectorAll: () => [] },
+    configurable: true,
+  });
+  const cases = {
+    en: [
+      [999, "byte", "999 byte/s"],
+      [1000, "byte", "1 kB/s"],
+      [5_200_000, "byte", "5.2 MB/s"],
+      [124.875, "bit", "999 bit/s"],
+      [125, "bit", "1 kb/s"],
+      [5_200_000, "bit", "41.6 Mb/s"],
+    ],
+    // CLDR writes a Latin "c" after the slash in Russian.
+    ru: [
+      [999, "byte", "999 Б/c"],
+      [1000, "byte", "1 кБ/c"],
+      [5_200_000, "byte", "5,2 МБ/c"],
+      [124.875, "bit", "999 бит/c"],
+      [125, "bit", "1 кбит/c"],
+      [5_200_000, "bit", "41,6 Мбит/c"],
+    ],
+  } as const;
+  try {
+    for (const [lang, rows] of Object.entries(cases) as [keyof typeof cases, (typeof cases)[keyof typeof cases]][]) {
+      setLang(lang);
+      for (const [rate, unit, want] of rows)
+        assert.equal(fmtRate(rate, unit).replace(/\s/g, " "), want, `${lang} ${rate} ${unit}`);
+    }
+  } finally {
+    setLang("en");
+    delete globals.document;
+  }
 });

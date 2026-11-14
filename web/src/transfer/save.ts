@@ -16,41 +16,51 @@ const OPFS_DIR = "incoming";
 export const opfsDir = async (create = false) =>
   (await navigator.storage.getDirectory()).getDirectoryHandle(OPFS_DIR, { create });
 const STALE_MS = 60 * 60 * 1000;
-let opfs = false;
+// Opening OPFS can take seconds on a cold profile, and an offer may arrive before then, so saveMode waits for it.
+let opfs: Promise<boolean> = Promise.resolve(false);
 
 /** Registers the Service Worker and probes OPFS; call once on page load. */
-export async function setupSaving(): Promise<void> {
+export function setupSaving(): void {
   void navigator.serviceWorker?.register("/sw.js").catch(() => {});
   // A hard reload, or a page loaded before the worker activated, stays uncontrolled: ask it to claim us.
   void navigator.serviceWorker?.ready.then((registration) => {
     if (!navigator.serviceWorker.controller) registration.active?.postMessage({ t: "claim" });
   });
+  opfs = probeOpfs();
+}
+
+async function probeOpfs(): Promise<boolean> {
   try {
     const dir = await opfsDir(true);
-    opfs = "createWritable" in FileSystemFileHandle.prototype;
-    // Finished files stay until a later visit, since their download may still be reading them; another tab's
-    // live transfer keeps its file fresh, so only old files go.
-    for await (const [name, handle] of (
-      dir as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }
-    ).entries()) {
-      if (
-        handle.kind === "file" &&
-        Date.now() - (await (handle as FileSystemFileHandle).getFile()).lastModified > STALE_MS
-      ) {
-        await dir.removeEntry(name).catch(() => {});
-      }
-    }
+    void removeStale(dir).catch(() => {});
+
+    return "createWritable" in FileSystemFileHandle.prototype;
   } catch {
-    opfs = false;
+    return false;
   }
 }
 
-export function saveMode(): SaveMode | null {
+/** Finished files stay until a later visit, since their download may still be reading them; another tab's live
+ *  transfer keeps its file fresh, so only old files go. */
+async function removeStale(dir: FileSystemDirectoryHandle): Promise<void> {
+  for await (const [name, handle] of (
+    dir as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }
+  ).entries()) {
+    if (
+      handle.kind === "file" &&
+      Date.now() - (await (handle as FileSystemFileHandle).getFile()).lastModified > STALE_MS
+    ) {
+      await dir.removeEntry(name).catch(() => {});
+    }
+  }
+}
+
+export async function saveMode(): Promise<SaveMode | null> {
   if (picker()) return "picker";
-  if (isIOS) return opfs ? "hold" : null;
+  if (isIOS) return (await opfs) ? "hold" : null;
   if (navigator.serviceWorker?.controller) return "sw";
 
-  return opfs ? "opfs" : null;
+  return (await opfs) ? "opfs" : null;
 }
 
 const room = async () => {

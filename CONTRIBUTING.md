@@ -16,7 +16,8 @@ cd web && npx playwright install chromium firefox && npm run e2e
 
 `npm run check` covers types, formatting (`npm run fmt` fixes it), lint, the project style rules and the unit tests.
 The e2e suite starts a release build of the server and runs two browsers against it. The README's Development
-section lists the options for both.
+section lists the options for both. CI splits the e2e suite into three shards on separate runners;
+`npx playwright test --shard=2/3` runs one of them locally.
 
 CI also runs these. Run them locally when your change touches what they cover:
 

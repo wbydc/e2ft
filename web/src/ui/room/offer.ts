@@ -20,7 +20,7 @@ export async function askOffer(offer: Offer, cancel: () => void): Promise<Sink |
     translate((m) => m.notifyOfferBody(offer.name, fmtBytes(offer.size))),
     offer.id,
   );
-  const mode = saveMode();
+  const mode = await saveMode();
   if (!mode) {
     setStatus((m) => m.cantSave(offer.name), "warning");
 

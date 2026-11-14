@@ -1,16 +1,27 @@
 // The sending and receiving rows: bar, name, bytes, rate and time left, and Fun mode's end-of-transfer burst.
-import { bindText, fmtBytes, fmtLeft } from "../../i18n/index.ts";
+import { bindText, fmtBytes, fmtLeft, fmtRate } from "../../i18n/index.ts";
 import type { Dir, Finished, Progress } from "../../transfer/events.ts";
 import { $ } from "../dom.ts";
 import { burst, isLively } from "../motion.ts";
+import { speedUnit } from "../speed-unit.ts";
 
-/** `samples` holds the rendered `[time, done]` pairs of the last WINDOW ms, for the recent rate behind the time left. */
+/** `samples` holds the rendered `[time, done]` pairs of the last WINDOW ms, for the recent rate behind speed and time left. */
 const rates: Partial<Record<Dir, { start: number; last: number; samples: [number, number][] }>> = {};
-/** The time left uses the rate over this window, which follows lanes being added, and waits WARMUP. */
+/** Speed and time left use the rate over this window, which follows lanes being added; the time left waits WARMUP. */
 const WINDOW = 8000;
 const WARMUP = 3000;
 const glides: Partial<Record<Dir, number>> = {};
 const bursts: Record<Dir, number> = { out: 0, in: 0 };
+
+/** Adds the render `[now, done]` to `samples`, drops those older than WINDOW and returns bytes per second over the rest. */
+export function recentRate(samples: [number, number][], now: number, done: number): number {
+  samples.push([now, done]);
+  while (now - samples[0][0] > WINDOW) samples.shift();
+
+  const [firstTime, firstDone] = samples[0];
+
+  return now > firstTime ? ((done - firstDone) / (now - firstTime)) * 1000 : 0;
+}
 
 /** Eases the bar to `to` over `ms`, so it moves between the 4-a-second renders instead of stepping; a drop snaps. */
 function glide(dir: Dir, to: number, duration: number) {
@@ -78,18 +89,13 @@ export function showProgress(dir: Dir, progress: Progress | null) {
   $(`${dir}-name`).textContent = progress.name;
   glide(dir, progress.total ? progress.done / progress.total : 1, gap);
 
-  const secs = (now - rate.start) / 1000;
   const { done, total } = progress;
-  rate.samples.push([now, done]);
-  while (now - rate.samples[0][0] > WINDOW) rate.samples.shift();
-
-  const [firstTime, firstDone] = rate.samples[0];
-  const recent = now > firstTime ? ((done - firstDone) / (now - firstTime)) * 1000 : 0;
+  const recent = recentRate(rate.samples, now, done);
   const left =
     !progress.waiting && now - rate.start >= WARMUP && recent > 0 && done < total ? (total - done) / recent : null;
 
   bindText($(`${dir}-text`), (messages) => {
-    const speed = secs > 0 && done ? ` · ${fmtBytes(done / secs)}/s` : "";
+    const speed = recent > 0 ? ` · ${fmtRate(recent, speedUnit())}` : "";
     const timeLeft = left === null ? "" : ` · ${messages.timeLeft(fmtLeft(left))}`;
 
     return messages.progress(fmtBytes(done), fmtBytes(total)) + speed + timeLeft;

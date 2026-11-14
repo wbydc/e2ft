@@ -224,8 +224,11 @@ export async function midTransfer(creator: Peer, joiner: Peer, name: string) {
     [creator, "out"],
     [joiner, "in"],
   ] as const) {
+    // The first bytes wait for the receiver's save target to open, which can take seconds on a cold profile.
     await expect
-      .poll(() => peer.page.locator(`#${dir}-bar`).evaluate((e) => (e as HTMLProgressElement).value))
+      .poll(() => peer.page.locator(`#${dir}-bar`).evaluate((e) => (e as HTMLProgressElement).value), {
+        timeout: 30_000,
+      })
       .toBeGreaterThan(0);
     await expect(peer.page.locator(`#${dir}-text`)).toContainText("/s");
   }

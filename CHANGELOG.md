@@ -9,13 +9,26 @@ an older peer stop working). A patch has only fixes.
 
 ### Added
 
+- Transfer speed can show in bits per second (Mb/s) instead of bytes (MB/s): a Settings choice kept in this browser,
+  also switched by clicking a transfer's progress text. In Russian the speed now reads in Russian units ("МБ/c")
+  instead of ending in "/s".
 - `ops/docker/docker-compose.yml` runs the app with its own coturn relay on one Linux host.
 - A Helm chart in `ops/helm/e2ft/`, with an optional coturn on a node's network or behind a load balancer. Each
   release publishes it as an OCI chart next to the image.
 
 ### Changed
 
+- A transfer's speed is the rate over the last 8 seconds, the same one its time left uses, instead of the average
+  since the start, so it follows the transfer as it speeds up or slows down.
+- CI runs the end-to-end tests as three parallel shards and lists each test's duration.
 - The Dockerfile moved to `ops/docker/Dockerfile`; build with `-f ops/docker/Dockerfile` from the repository root.
+
+### Fixed
+
+- A connection that dropped just as a chunk went out could end the room on the sending side instead of pausing the
+  transfer for the reconnect.
+- A browser that saves through its private storage (Firefox with Service Workers off) could decline a file offered in
+  the first seconds after the page loaded, saying it can't save files.
 
 ## [0.14.9] - 2026-11-14
 

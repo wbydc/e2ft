@@ -132,6 +132,12 @@ export class Outgoing {
         if (this.paused || this.context.link() !== link) continue;
 
         const [laneNumber, channel] = this.pickLane(link);
+        // Connection 0 closing: its channel leaves "open" before its close event pauses us, and a send would throw.
+        if (channel.readyState !== "open") {
+          await new Promise<void>((wake) => (this.wake = wake));
+          continue;
+        }
+
         const frameBytes = frame(this.transferNumber, index, ciphertext);
         channel.send(frameBytes);
         this.handed += frameBytes.byteLength;
