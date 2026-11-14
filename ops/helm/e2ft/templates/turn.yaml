@@ -1,0 +1,13 @@
+{{- if and .Values.turn.secret (not .Values.turn.existingSecret) }}
+# The TURN shared secret, when given as turn.secret instead of an existing Secret.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "e2ft.secretName" . }}
+  labels:
+    {{- include "e2ft.labels" . | nindent 4 }}
+    {{- include "e2ft.selector" . | nindent 4 }}
+type: Opaque
+data:
+  secret: {{ .Values.turn.secret | b64enc | quote }}
+{{- end }}

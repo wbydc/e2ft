@@ -1,0 +1,77 @@
+image:
+  # The published chart names the image released with it; from a checkout, set it to your own build.
+  repository: e2ft
+  # Defaults to the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+# The app needs HTTPS in browsers. Your controller must pass WebSocket upgrades on /ws and /discover and keep them
+# open for an hour (for ingress-nginx, the proxy-read-timeout and proxy-send-timeout annotations).
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: share.example.com
+  # The Secret holding the certificate for host; empty serves no TLS block.
+  tlsSecretName: ""
+
+turn:
+  # TURN and STUN URLs for an external coturn. With coturn.enabled and these empty, they point at coturn.host.
+  urls: []
+  stunUrls: []
+  # The coturn static-auth-secret, at least 32 characters. Prefer existingSecret, so the value stays out of values.
+  secret: ""
+  existingSecret: ""
+  existingSecretKey: secret
+
+# Addresses or CIDR blocks of the proxies in front of the app (your ingress controller's pods), comma-separated.
+# Needed for same-network discovery; see the README.
+trustedProxies: ""
+
+# A ConfigMap with a branding folder, mounted at /assets and served through ASSETS_DIR. Its keys are file names, so
+# use items to place files in subfolders.
+assets:
+  configMap: ""
+  items: []
+
+metrics:
+  enabled: false
+  port: 9090
+
+resources:
+  requests: { cpu: 10m, memory: 32Mi }
+  limits: { cpu: 500m, memory: 128Mi }
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+coturn:
+  enabled: false
+  # hostNetwork: coturn uses one node's network, so relay addresses are that node's public address. Pin the node with
+  # nodeSelector. loadBalancer: a LoadBalancer Service with externalTrafficPolicy Local, one Service port per relay
+  # port (narrow minPort..maxPort if your load balancer limits listeners).
+  mode: hostNetwork
+  # The public name or IP address browsers reach coturn at. Required when enabled.
+  host: ""
+  # The public address coturn advertises: the node's when it is behind NAT, the load balancer's in loadBalancer mode
+  # (required there).
+  externalIp: ""
+  # hostNetwork only: listen and relay on this node address alone instead of every interface.
+  listeningIp: ""
+  image: docker.io/coturn/coturn:4.18.0
+  port: 3478
+  minPort: 49152
+  maxPort: 50151
+  # Allocations per credential; the app's TURN_QUOTA build setting matches it.
+  userQuota: 12
+  service:
+    annotations: {}
+  nodeSelector: {}
+  tolerations: []
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { cpu: "1", memory: 256Mi }

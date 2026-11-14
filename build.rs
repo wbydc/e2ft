@@ -78,7 +78,7 @@ fn main() {
         println!("cargo:rerun-if-env-changed={name}");
     }
     write_settings();
-    // The Dockerfile builds web/dist in its Node stage and sets this, so the Rust stage needs no npm.
+    // ops/docker/Dockerfile builds web/dist in its Node stage and sets this, so the Rust stage needs no npm.
     if env::var_os("E2FT_WEB_PREBUILT").is_some() {
         return;
     }

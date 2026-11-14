@@ -2,7 +2,8 @@ FROM node:24.22.2-bookworm-slim AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --ignore-scripts
-# The whole context (.dockerignore keeps node_modules out). Branding is not built in: the server reads ASSETS_DIR.
+# The whole context, app/ (Dockerfile.dockerignore beside this file keeps node_modules out). Branding is not built
+# in: the server reads ASSETS_DIR.
 COPY . /app/
 # Build-time settings: unset keeps the defaults in web/src/config.ts.
 ARG CHUNK_SIZE WINDOW MAX_DIRECT TURN_QUOTA BUFFER_HIGH BUFFER_LOW STEP_MS GAIN LANE_OPEN_MS ACK_EVERY ACK_MS \

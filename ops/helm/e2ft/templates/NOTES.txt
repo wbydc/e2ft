@@ -1,0 +1,20 @@
+e2ft {{ .Chart.AppVersion }} runs as {{ include "e2ft.fullname" . }} in {{ .Release.Namespace }}.
+{{- if .Values.ingress.enabled }}
+
+Open https://{{ .Values.ingress.host }}. Browsers need HTTPS, and the ingress must pass WebSocket upgrades on /ws
+and /discover.
+{{- else }}
+
+Try it locally: kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "e2ft.fullname" . }} 8080:{{ .Values.service.port }}
+and open http://localhost:8080. For other people, put it behind an HTTPS ingress (ingress.enabled).
+{{- end }}
+{{- if .Values.coturn.enabled }}
+
+coturn ({{ .Values.coturn.mode }}) answers at {{ .Values.coturn.host }}:{{ .Values.coturn.port }}. Open in the firewall
+{{- if eq .Values.coturn.mode "hostNetwork" }} of its node{{ end }}:
+  {{ .Values.coturn.port }} UDP and TCP, and UDP {{ .Values.coturn.minPort }}-{{ .Values.coturn.maxPort }} for relays.
+Also block relaying to the node's own public services in the host firewall.
+{{- else if not (include "e2ft.turnUrls" .) }}
+
+No TURN relay: browsers behind strict NATs or firewalls will not connect. Enable coturn or set turn.urls.
+{{- end }}

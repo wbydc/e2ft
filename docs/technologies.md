@@ -38,9 +38,9 @@ logs and has no access to the secret, which travels only in the link fragment.
 ## rust-embed
 
 `src/assets.rs` embeds the built frontend with `#[derive(RustEmbed)]` over `web/dist/`. `build.rs` builds `web/dist`
-before the Rust compile: it runs `npm ci` when `web/node_modules` is absent and then `npm run build`. The `Dockerfile`
-builds the frontend in its Node stage and sets `E2FT_WEB_PREBUILT=1`, so the Rust stage skips npm and embeds the
-already built directory.
+before the Rust compile: it runs `npm ci` when `web/node_modules` is absent and then `npm run build`.
+`ops/docker/Dockerfile` builds the frontend in its Node stage and sets `E2FT_WEB_PREBUILT=1`, so the Rust stage skips
+npm and embeds the already built directory.
 
 This gives one deployable binary that needs no asset directory at runtime. At startup the server copies the
 embedded set into an in-memory table, lays the optional `ASSETS_DIR` folder over it and renders `index.html` and

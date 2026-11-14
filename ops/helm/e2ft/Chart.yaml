@@ -1,0 +1,8 @@
+apiVersion: v2
+name: e2ft
+description: End-to-end encrypted browser file sharing, with an optional coturn relay
+type: application
+# Both always equal the app version in Cargo.toml; a unit test and the release workflow check it.
+version: 0.14.9
+appVersion: "0.14.9"
+keywords: [file-sharing, webrtc, e2ee, turn]

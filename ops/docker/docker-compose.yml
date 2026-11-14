@@ -1,0 +1,56 @@
+# e2ft with its own TURN relay on one Linux host. Copy .env.example to .env, fill it in, then `docker compose up -d`
+# (or `podman compose up -d`) in this folder. coturn uses the host network, which Docker Desktop does not offer.
+name: e2ft
+
+services:
+  e2ft:
+    # Built from this checkout unless E2FT_IMAGE names a published release image.
+    image: ${E2FT_IMAGE:-localhost/e2ft}
+    build:
+      context: ../..
+      dockerfile: ops/docker/Dockerfile
+    # Rooms live in this one process's memory: never scale it past one.
+    restart: unless-stopped
+    ports:
+      # Loopback by default: put a TLS reverse proxy in front (see the README), browsers need HTTPS for WebCrypto.
+      - ${E2FT_PUBLISH:-127.0.0.1:8080}:8080
+    environment:
+      TURN_SECRET: ${TURN_SECRET:?set TURN_SECRET in .env}
+      STUN_URLS: stun:${TURN_HOST:?set TURN_HOST in .env}:3478
+      TURN_URLS: turn:${TURN_HOST}:3478?transport=udp,turn:${TURN_HOST}:3478?transport=tcp
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  coturn:
+    image: docker.io/coturn/coturn:4.18.0
+    restart: unless-stopped
+    # Relay addresses must be the host's own; Docker's port mapping would rewrite peer addresses and break them.
+    network_mode: host
+    user: 65534:65534
+    environment:
+      TURN_SECRET: ${TURN_SECRET:?set TURN_SECRET in .env}
+      TURN_HOST: ${TURN_HOST:?set TURN_HOST in .env}
+      EXTERNAL_IP: ${EXTERNAL_IP:-}
+    # The full config is written into memory at start, so the secret never shows in a command line or on disk.
+    entrypoint: [sh, -c]
+    command:
+      - |
+        set -e
+        umask 077
+        conf=/run/coturn/turnserver.conf
+        cp /etc/coturn/base.conf "$$conf"
+        printf 'realm=%s\nstatic-auth-secret=%s\n' "$$TURN_HOST" "$$TURN_SECRET" >> "$$conf"
+        if [ -n "$$EXTERNAL_IP" ]; then printf 'external-ip=%s\n' "$$EXTERNAL_IP" >> "$$conf"; fi
+        unset TURN_SECRET
+        exec turnserver -c "$$conf"
+    volumes:
+      - ./turnserver.conf:/etc/coturn/base.conf:ro
+    tmpfs:
+      - /run/coturn:size=8m,uid=65534,gid=65534,mode=0700
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # turnserver carries a file capability; without it in the bounding set exec fails with EPERM.
+    cap_add: [NET_BIND_SERVICE]

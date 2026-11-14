@@ -472,9 +472,11 @@ table, never the filesystem:
 A slot file with no matching marker, an unbalanced marker or an unreadable `ASSETS_DIR` stops the server at startup.
 Without the folder the app is the neutral default. `web/tests/assets/` is an example folder.
 
-The `Dockerfile` builds the same thing in two stages: a Node stage runs the frontend build, and a Rust stage compiles
-the server with `E2FT_WEB_PREBUILT=1` so it does not run npm again. The runtime image is distroless, runs as a
-non-root user and listens on `0.0.0.0:8080`.
+`ops/docker/Dockerfile` builds the same thing in two stages: a Node stage runs the frontend build, and a Rust stage
+compiles the server with `E2FT_WEB_PREBUILT=1` so it does not run npm again. The runtime image is distroless, runs as
+a non-root user and listens on `0.0.0.0:8080`. The build context is the repository root. `ops/` also holds the
+self-hosting kits: `ops/docker/docker-compose.yml` (the app and a host-network coturn) and the Helm chart
+`ops/helm/e2ft/` (the app, optionally coturn), which each release publishes next to the image.
 
 ## What the server can see
 

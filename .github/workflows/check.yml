@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # The same toolchains the Dockerfile builds with, so the gate and the image agree.
+  # The same toolchains ops/docker/Dockerfile builds with, so the gate and the image agree.
   NODE_VERSION: 24.22.2
   RUST_VERSION: 1.98.1
   CARGO_TERM_COLOR: always
@@ -90,6 +90,19 @@ jobs:
           name: integration-results
           path: web/test-results/
           retention-days: 7
+
+  # The self-hosting kits: the Helm chart in each coturn mode through helm lint and kubeconform, and the compose file.
+  ops:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+        with:
+          version: v4.3.2
+      - run: ops/check.sh
 
   # Any finding fails the job.
   scan:

@@ -1,0 +1,120 @@
+{{- include "e2ft.validate" . -}}
+# Rooms live only in this process's memory: exactly one replica, and Recreate so a rollout never runs two pods that
+# would split rooms between them.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "e2ft.fullname" . }}
+  labels:
+    {{- include "e2ft.labels" . | nindent 4 }}
+    {{- include "e2ft.selector" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "e2ft.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "e2ft.selector" . | nindent 8 }}
+      {{- if .Values.turn.secret }}
+      annotations:
+        checksum/secret: {{ .Values.turn.secret | sha256sum }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: e2ft
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+            {{- if .Values.metrics.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+            {{- end }}
+          env:
+            - name: ADDR
+              value: 0.0.0.0:8080
+            {{- with include "e2ft.stunUrls" . }}
+            - name: STUN_URLS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with include "e2ft.turnUrls" . }}
+            - name: TURN_URLS
+              value: {{ . | quote }}
+            - name: TURN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e2ft.secretName" $ }}
+                  key: {{ include "e2ft.secretKey" $ }}
+            {{- end }}
+            {{- with .Values.trustedProxies }}
+            - name: TRUSTED_PROXIES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.metrics.enabled }}
+            - name: METRICS
+              value: "true"
+            - name: METRICS_ADDR
+              value: "0.0.0.0:{{ .Values.metrics.port }}"
+            {{- end }}
+            {{- if .Values.assets.configMap }}
+            - name: ASSETS_DIR
+              value: /assets
+            {{- end }}
+          {{- if .Values.assets.configMap }}
+          volumeMounts:
+            - name: assets
+              mountPath: /assets
+              readOnly: true
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      {{- if .Values.assets.configMap }}
+      volumes:
+        - name: assets
+          configMap:
+            name: {{ .Values.assets.configMap }}
+            {{- with .Values.assets.items }}
+            items:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+      {{- end }}

@@ -7,6 +7,16 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+### Added
+
+- `ops/docker/docker-compose.yml` runs the app with its own coturn relay on one Linux host.
+- A Helm chart in `ops/helm/e2ft/`, with an optional coturn on a node's network or behind a load balancer. Each
+  release publishes it as an OCI chart next to the image.
+
+### Changed
+
+- The Dockerfile moved to `ops/docker/Dockerfile`; build with `-f ops/docker/Dockerfile` from the repository root.
+
 ## [0.14.9] - 2026-11-14
 
 ### Changed

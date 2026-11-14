@@ -93,7 +93,7 @@ browser through the relay, add `?relay=1` to the page URL.
 ### Build and run
 
 ```bash
-podman build -t e2ft .
+podman build -f ops/docker/Dockerfile -t e2ft .
 podman run --rm -p 8080:8080 e2ft
 ```
 
@@ -133,7 +133,7 @@ is out of bounds or does not fit with another setting stops the build with a mes
 
 ```bash
 CHUNK_SIZE=131072 cargo run
-podman build --build-arg CHUNK_SIZE=131072 --build-arg KEEP_ALIVES=0,120,600 --build-arg KEEP_ALIVE=120 -t e2ft .
+podman build --build-arg CHUNK_SIZE=131072 --build-arg KEEP_ALIVES=0,120,600 --build-arg KEEP_ALIVE=120 -f ops/docker/Dockerfile -t e2ft .
 ```
 
 To keep overrides in a file, put `NAME=value` lines in a `.env` at the repo root (it is gitignored) and load it into
@@ -158,9 +158,9 @@ the shell before building: `set -a; . ./.env; set +a`. The builds do not read `.
 | `KEEP_ALIVE` | `300` | one of `KEEP_ALIVES` | The default keep-alive. |
 
 `ACCESS_LEN`, `KEEP_ALIVES` and `KEEP_ALIVE` are built into both the page and the server, so pass them to the whole
-build (the `Dockerfile` hands them to both stages). Builds with different `ACCESS_LEN`, `SECRET_LEN`, `KEEP_ALIVES`
-or `KEEP_ALIVE` cannot read each other's invites; during a rolling update that changes them, an invite made on an old
-instance may fail on a new one. The values end up in the public `app.js`, so never put a secret in them.
+build (`ops/docker/Dockerfile` hands them to both stages). Builds with different `ACCESS_LEN`, `SECRET_LEN`,
+`KEEP_ALIVES` or `KEEP_ALIVE` cannot read each other's invites; during a rolling update that changes them, an invite
+made on an old instance may fail on a new one. The values end up in the public `app.js`, so never put a secret in them.
 
 ### TURN relay
 
@@ -204,6 +204,47 @@ podman run --rm -p 8080:8080 \
 
 For `turns:`, enable TLS in coturn, usually on port 5349 with a certificate, and use
 `turns:turn.example.com:5349` in `TURN_URLS`.
+
+### Docker Compose
+
+`ops/docker/` runs the app and its own coturn on one Linux host:
+
+```bash
+cd ops/docker
+cp env.example .env   # set TURN_HOST and TURN_SECRET
+docker compose up -d --build
+```
+
+Compose refuses to start without `TURN_SECRET` and `TURN_HOST`. `--build` builds this checkout; set `E2FT_IMAGE` in
+`.env` to run a published image instead. coturn runs on the host network, because relay addresses must be the host's
+own, so this works on Linux and not on Docker Desktop. Its settings are in `ops/docker/turnserver.conf`; the secret
+and realm are added in memory when it starts and never appear in a command line. Open the TURN ports above in the
+firewall. The app listens on `127.0.0.1:8080`; put a TLS reverse proxy in front of it (below). `podman compose`
+works the same way.
+
+### Kubernetes (Helm)
+
+`ops/helm/e2ft/` is a Helm chart, published with every release as `oci://ghcr.io/<owner>/charts/e2ft`:
+
+```bash
+helm install e2ft oci://ghcr.io/<owner>/charts/e2ft --version <version> \
+  --set ingress.enabled=true,ingress.host=share.example.com,ingress.tlsSecretName=share-tls \
+  --set coturn.enabled=true,coturn.host=turn.example.com,turn.existingSecret=e2ft-turn \
+  --set coturn.nodeSelector."kubernetes\.io/hostname"=<node>
+```
+
+The app runs as one replica with the `Recreate` strategy. `turn.existingSecret` names a Secret whose `secret` key
+holds the TURN shared secret (`turn.secret` makes one for you). coturn is off by default and has two modes:
+
+- `coturn.mode=hostNetwork` (default) runs coturn on the network of the node `coturn.nodeSelector` picks. Point
+  `coturn.host` at that node's public address, and set `coturn.externalIp` if the node is behind NAT.
+- `coturn.mode=loadBalancer` puts coturn behind a `LoadBalancer` Service with `externalTrafficPolicy: Local`, which
+  keeps client addresses. Set `coturn.externalIp` to the load balancer's address. The Service has one port per relay
+  port, so narrow `coturn.minPort` and `coturn.maxPort` if your load balancer limits listeners.
+
+Without coturn, `turn.urls` points the app at a TURN server you run elsewhere. Set `trustedProxies` to your ingress
+controller's pod addresses for same-network discovery, and `assets.configMap` for branding. `values.yaml` lists
+every setting. From a checkout, install `ops/helm/e2ft` with `--set image.repository=<your image>`.
 
 ### Reverse proxy
 
