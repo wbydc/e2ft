@@ -1,8 +1,8 @@
 //! `e2ft --health`: checks a running server for a container health check, since the image has no shell or curl.
 //! One `GET /` to `ADDR`, then for each TURN server in `TURN_URLS` a Binding, an Allocate with a credential signed
 //! from `TURN_SECRET` the way the server signs them, and a zero-lifetime Refresh that frees the relay port at once.
-//! Exit 0 when everything passes; otherwise one line on stderr naming the failed step, exit 1. The secret and the
-//! credential are never printed.
+//! Exit 0 when everything passes; otherwise one line on stderr naming the failed step and the exit code of its
+//! `Failure`. The secret and the credential are never printed.
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -18,38 +18,60 @@ const BUDGET: Duration = Duration::from_secs(4);
 /// REQUESTED-TRANSPORT: UDP, the only relay coturn allows here.
 const UDP_RELAY: [u8; 4] = [17, 0, 0, 0];
 
-pub fn run() -> i32 {
-    match check() {
-        Ok(()) => 0,
-        Err(message) => {
-            eprintln!("health: {message}");
-            1
+/// Why the check failed. Docker and podman read any non-zero exit code as unhealthy; Docker reserves 2.
+#[derive(Debug, PartialEq)]
+enum Failure {
+    /// Exit 1: the server does not answer on `ADDR`.
+    Server(String),
+    /// Exit 3: a TURN server is unreachable, silent or fails a step, or `TURN_URLS` is wrong.
+    Turn(String),
+    /// Exit 4: coturn rejected the signed credential, so `TURN_SECRET` differs from coturn's.
+    Secret(String),
+}
+
+impl Failure {
+    fn code(&self) -> i32 {
+        match self {
+            Failure::Server(_) => 1,
+            Failure::Turn(_) => 3,
+            Failure::Secret(_) => 4,
         }
     }
 }
 
-fn check() -> Result<(), String> {
+pub fn run() -> i32 {
+    let Err(failure) = check() else {
+        return 0;
+    };
+    let (Failure::Server(message) | Failure::Turn(message) | Failure::Secret(message)) = &failure;
+    eprintln!("health: {message}");
+
+    failure.code()
+}
+
+fn check() -> Result<(), Failure> {
     let start = Instant::now();
-    http(local(crate::config::address("ADDR", crate::config::ADDR)), start + HTTP_BUDGET)?;
+    http(local(crate::config::address("ADDR", crate::config::ADDR)), start + HTTP_BUDGET).map_err(Failure::Server)?;
 
     let urls = crate::ice::list("TURN_URLS", "");
     if urls.is_empty() {
         return Ok(());
     }
-    let secret = std::env::var("TURN_SECRET").map_err(|_| "TURN_URLS is set but TURN_SECRET is not".to_string())?;
+    let secret =
+        std::env::var("TURN_SECRET").map_err(|_| Failure::Turn("TURN_URLS is set but TURN_SECRET is not".into()))?;
     let mut servers: Vec<Turn> = vec![];
     for url in &urls {
         if url.starts_with("turns:") {
             eprintln!("health: {url}: TLS is not checked");
             continue;
         }
-        let server = Turn::parse(url).ok_or_else(|| format!("{url}: not a turn: URL"))?;
+        let server = Turn::parse(url).ok_or_else(|| Failure::Turn(format!("{url}: not a turn: URL")))?;
         if !servers.iter().any(|seen| (&seen.host, seen.port, seen.tcp) == (&server.host, server.port, server.tcp)) {
             servers.push(server);
         }
     }
     for server in &servers {
-        turn(server, secret.as_bytes(), start + BUDGET).map_err(|message| format!("{}: {message}", server.url))?;
+        turn(server, secret.as_bytes(), start + BUDGET)?;
     }
 
     Ok(())
@@ -201,21 +223,22 @@ impl Link {
     }
 }
 
-fn turn(server: &Turn, secret: &[u8], deadline: Instant) -> Result<(), String> {
-    let mut link = Link::open(server, deadline)?;
+fn turn(server: &Turn, secret: &[u8], deadline: Instant) -> Result<(), Failure> {
+    let fail = |step: String| Failure::Turn(format!("{}: {step}", server.url));
+    let mut link = Link::open(server, deadline).map_err(fail)?;
 
-    let binding = link.ask(stun::BINDING, &[], None, deadline).map_err(|err| format!("binding: {err}"))?;
+    let binding = link.ask(stun::BINDING, &[], None, deadline).map_err(|err| fail(format!("binding: {err}")))?;
     if let Some(code) = binding.error {
-        return Err(format!("binding: error {code}"));
+        return Err(fail(format!("binding: error {code}")));
     }
 
     let challenge = link
         .ask(stun::ALLOCATE, &[(stun::REQUESTED_TRANSPORT, &UDP_RELAY)], None, deadline)
-        .map_err(|err| format!("allocate: {err}"))?;
+        .map_err(|err| fail(format!("allocate: {err}")))?;
     let (Some(401), Some(realm), Some(nonce)) =
         (challenge.error, challenge.attribute(stun::REALM), challenge.attribute(stun::NONCE))
     else {
-        return Err("allocate: expected a 401 challenge with a realm and a nonce".into());
+        return Err(fail("allocate: expected a 401 challenge with a realm and a nonce".into()));
     };
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock after 1970").as_secs();
@@ -225,20 +248,24 @@ fn turn(server: &Turn, secret: &[u8], deadline: Instant) -> Result<(), String> {
         [(stun::USERNAME, username.as_bytes()), (stun::REALM, realm), (stun::NONCE, nonce)];
 
     let allocate = [&[(stun::REQUESTED_TRANSPORT, &UDP_RELAY[..])], &login[..]].concat();
-    let allocation =
-        link.ask(stun::ALLOCATE, &allocate, Some(&key), deadline).map_err(|err| format!("allocate: {err}"))?;
+    let allocation = link
+        .ask(stun::ALLOCATE, &allocate, Some(&key), deadline)
+        .map_err(|err| fail(format!("allocate: {err}")))?;
     match allocation.error {
         None => {}
-        Some(401) => return Err("credential rejected: TURN_SECRET differs from coturn's".into()),
-        Some(code) => return Err(format!("allocate: error {code}")),
+        Some(401) => {
+            let message = format!("{}: credential rejected: TURN_SECRET differs from coturn's", server.url);
+            return Err(Failure::Secret(message));
+        }
+        Some(code) => return Err(fail(format!("allocate: error {code}"))),
     }
 
     let free = [&[(stun::LIFETIME, &[0u8; 4][..])], &login[..]].concat();
     let refresh = link
         .ask(stun::REFRESH, &free, Some(&key), deadline)
-        .map_err(|err| format!("free the allocation: {err}"))?;
+        .map_err(|err| fail(format!("free the allocation: {err}")))?;
     if let Some(code) = refresh.error {
-        return Err(format!("free the allocation: error {code}"));
+        return Err(fail(format!("free the allocation: error {code}")));
     }
 
     Ok(())
@@ -296,8 +323,10 @@ mod tests {
         assert!(start.elapsed() < HTTP_BUDGET);
 
         let server = Turn::parse("turn:127.0.0.1:1").unwrap();
-        let err = turn(&server, b"secret", soon()).unwrap_err();
-        assert!(err.starts_with("binding:"), "{err}");
+        let failure = turn(&server, b"secret", soon()).unwrap_err();
+        let binding = matches!(&failure, Failure::Turn(message) if message.starts_with("turn:127.0.0.1:1: binding:"));
+        assert!(binding, "{failure:?}");
+        assert_eq!(failure.code(), 3);
     }
 
     // The loopback coturn of web/scripts/coturn.sh on 3481, which takes the shared secret E2E_TURN_SECRET: start
@@ -320,7 +349,7 @@ mod tests {
             for round in 0..2 {
                 for check in 0..RELAY_PORTS {
                     turn(&server, secret.as_bytes(), soon())
-                        .unwrap_or_else(|err| panic!("{transport} round {round} check {check}: {err}"));
+                        .unwrap_or_else(|failure| panic!("{transport} round {round} check {check}: {failure:?}"));
                 }
                 std::thread::sleep(Duration::from_secs(2));
             }
@@ -331,7 +360,9 @@ mod tests {
     #[ignore = "needs web/scripts/coturn.sh start"]
     fn another_secret_is_rejected() {
         let server = Turn::parse(LOOPBACK).unwrap();
-        let err = turn(&server, b"not-the-secret-coturn-was-given-0123", soon()).unwrap_err();
-        assert_eq!(err, "credential rejected: TURN_SECRET differs from coturn's");
+        let failure = turn(&server, b"not-the-secret-coturn-was-given-0123", soon()).unwrap_err();
+        let message = format!("{LOOPBACK}: credential rejected: TURN_SECRET differs from coturn's");
+        assert_eq!(failure, Failure::Secret(message));
+        assert_eq!(failure.code(), 4);
     }
 }

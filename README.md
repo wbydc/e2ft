@@ -119,7 +119,17 @@ Open <http://localhost:8080>.
 The image declares a health check: every 30 seconds `/e2ft --health` asks the server for its page, then makes and at
 once frees one allocation on each TURN server in `TURN_URLS` with a credential signed from `TURN_SECRET`. It fails
 when the server does not answer, a TURN server is down, or its secret differs from coturn's, and prints the failed
-step (`docker inspect --format '{{json .State.Health}}' <container>`). Podman keeps the health check only in images
+step (`docker inspect --format '{{json .State.Health}}' <container>`). Its exit code tells which:
+
+| Code | Meaning |
+|---|---|
+| 0 | Healthy |
+| 1 | The server does not answer on `ADDR` |
+| 3 | A TURN server is unreachable, does not answer or fails a step, or `TURN_URLS` is wrong |
+| 4 | coturn rejected the credential: `TURN_SECRET` differs from coturn's |
+
+Any code but 0 marks the container unhealthy; 2 is reserved by Docker. Docker's health log keeps the code, podman's
+records every failure as 1 (run `podman exec <container> /e2ft --health` to see it). Podman keeps the health check only in images
 built with `--format docker`, as above. The check reaches TURN from inside the container: when the TURN host's public
 address is not reachable from there (a router without hairpin NAT), make its name resolve to the host inside the
 container, for example `extra_hosts: ["turn.example.com:host-gateway"]` on the compose service. Keep `TURN_URLS`

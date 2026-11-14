@@ -46,7 +46,7 @@ One axum binary. Each file has one role.
 | `src/lobby.rs` | Pure discovery state: the visible home pages grouped by a keyed hash of their network, the address rules that decide whether an address may form a group, the name bounds, and the rate for one frame type. |
 | `src/discover.rs` | The `/discover` endpoint: finds the client address (socket peer, or `X-Forwarded-For` behind trusted proxies), enters the page into its group, announces the group on every change, and passes asks and answers inside one group; an answer reaches only a page whose ask is still open. Its pings and idle timeout are shorter than `/ws`'s, and a socket that sends `hello` or `ask` too fast is closed. |
 | `src/ice.rs` | Builds the ICE server list from `STUN_URLS` and `TURN_URLS`, with TURN credentials. |
-| `src/health.rs` | `e2ft --health`, the image's health check: one `GET /` to `ADDR`, then for each TURN server a Binding, a signed Allocate and a zero-lifetime Refresh. Exits 0 or 1, never prints the secret or the credential. |
+| `src/health.rs` | `e2ft --health`, the image's health check: one `GET /` to `ADDR`, then for each TURN server a Binding, a signed Allocate and a zero-lifetime Refresh. Exits 0, or 1 when the server does not answer, 3 when a TURN server fails, 4 when coturn rejects the credential (2 is Docker's reserved code); never prints the secret or the credential. |
 | `src/stun.rs` | Pure STUN and TURN message encoding for the health check: the header, attributes, `MESSAGE-INTEGRITY` with the long-term key, and the reply's error code. |
 | `src/metrics.rs` | Counters, gauges and the Prometheus text for `GET /metrics`. |
 

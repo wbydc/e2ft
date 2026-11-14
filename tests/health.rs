@@ -1,4 +1,5 @@
-//! The built binary's `--health` against a server it started, then against the same port with nothing listening.
+//! The built binary's `--health` against a server it started, with and without a dead TURN server, then against the
+//! same port with nothing listening: exit 0, 3 and 1.
 
 use std::{
     net::TcpListener,
@@ -9,11 +10,16 @@ use std::{
 const BINARY: &str = env!("CARGO_BIN_EXE_e2ft");
 
 fn health(addr: &str) -> (Option<i32>, String, Duration) {
+    health_with_turn(addr, "")
+}
+
+fn health_with_turn(addr: &str, turn_urls: &str) -> (Option<i32>, String, Duration) {
     let start = Instant::now();
     let output = Command::new(BINARY)
         .arg("--health")
         .env("ADDR", addr)
-        .env_remove("TURN_URLS")
+        .env("TURN_URLS", turn_urls)
+        .env("TURN_SECRET", "a-test-secret-for-a-turn-server-nobody-runs")
         .output()
         .expect("run e2ft --health");
 
@@ -40,6 +46,9 @@ fn passes_while_the_server_answers_and_fails_fast_when_it_stops() {
     let (code, stderr, _) = health(&format!("0.0.0.0:{port}"));
     assert_eq!(code, Some(0), "the server's own unspecified ADDR: {stderr}");
     assert!(stderr.is_empty(), "silent on success: {stderr}");
+    let (code, stderr, _) = health_with_turn(&format!("127.0.0.1:{port}"), "turn:127.0.0.1:1");
+    assert_eq!(code, Some(3), "a TURN server that does not answer: {stderr}");
+    assert!(stderr.starts_with("health: turn:127.0.0.1:1: binding:"), "{stderr}");
 
     server.kill().unwrap();
     server.wait().unwrap();
