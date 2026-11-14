@@ -177,11 +177,14 @@ fn render_index(
 ) -> Result<String, String> {
     let html = fill_slots(html, slots)?;
     let html = stamp_urls(&html, files);
-    if html.matches("__VERSION__").count() != 1 {
-        return Err("expected __VERSION__ once in index.html".into());
+    for marker in ["__VERSION__", "__CHANGELOG__"] {
+        if html.matches(marker).count() != 1 {
+            return Err(format!("expected {marker} once in index.html"));
+        }
     }
+    let changelog = concat!(env!("CARGO_PKG_REPOSITORY"), "/blob/v", env!("CARGO_PKG_VERSION"), "/CHANGELOG.md");
 
-    Ok(html.replace("__VERSION__", env!("CARGO_PKG_VERSION")))
+    Ok(html.replace("__CHANGELOG__", changelog).replace("__VERSION__", env!("CARGO_PKG_VERSION")))
 }
 
 /// Replaces each `<!-- slot:NAME -->default<!-- /slot:NAME -->` with the slot's markup, or the trimmed default when
@@ -297,6 +300,9 @@ pub(crate) mod tests {
         assert!(!html.contains("<!-- slot:") && !html.contains("<!-- /slot:"));
         assert!(html.contains("<span class=\"brand\">e2ft</span>"));
         assert!(!html.contains("__VERSION__") && html.contains(env!("CARGO_PKG_VERSION")));
+        let version = env!("CARGO_PKG_VERSION");
+        let link = format!("<a class=\"ui-muted\" href=\"https://github.com/wbydc/e2ft/blob/v{version}/CHANGELOG.md\"");
+        assert!(html.contains(&link), "the version links to its changelog");
         assert!(!assets.has_legal());
     }
 

@@ -56,6 +56,12 @@ test("the footer links to Terms and Privacy in the UI language, and each page lo
   await expect(footerTerms).toHaveText("Terms");
   await expect(footerTerms).toHaveAttribute("href", "/terms");
   await expect(footerPrivacy).toHaveAttribute("href", "/privacy");
+  const version = peer.page.locator("footer a", { hasText: /^v\d+\.\d+\.\d+$/ });
+  await expect(version).toHaveAttribute(
+    "href",
+    `https://github.com/wbydc/e2ft/blob/${await version.textContent()}/CHANGELOG.md`,
+  );
+  await expect(version).toHaveAttribute("target", "_blank");
   await expect(peer.page.locator("#home .legal-note a[data-legal='terms']")).toHaveAttribute("href", "/terms");
 
   await peer.page.selectOption("#lang", "ru");

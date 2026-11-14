@@ -18,6 +18,7 @@ an older peer stop working). A patch has only fixes.
 
 ### Changed
 
+- The version at the bottom of the page links to its changelog on GitHub.
 - A transfer's speed is the rate over the last 8 seconds, the same one its time left uses, instead of the average
   since the start, so it follows the transfer as it speeds up or slows down.
 - CI runs the end-to-end tests as three parallel shards and lists each test's duration.
