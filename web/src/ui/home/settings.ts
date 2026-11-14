@@ -10,6 +10,7 @@ import { RELAY_ONLY, Room } from "../../room/room.ts";
 import { $ } from "../dom.ts";
 import { isLively, setLively } from "../motion.ts";
 import { enableNotify, isNotify, setNotify } from "../notify.ts";
+import { setSpeedUnit, speedUnit } from "../speed-unit.ts";
 
 /** The invite link, a scanned QR and the join form all open the Join screen. */
 export type OpenJoin = (invite: Invite) => void;
@@ -36,6 +37,7 @@ const MODES: Record<
     share: boolean;
     conn: boolean;
     calm: boolean;
+    speed: boolean;
     notify: boolean;
     alwaysTurn: boolean;
     device: boolean;
@@ -49,6 +51,7 @@ const MODES: Record<
     share: true,
     conn: false,
     calm: true,
+    speed: true,
     notify: true,
     alwaysTurn: true,
     device: true,
@@ -61,6 +64,7 @@ const MODES: Record<
     share: true,
     conn: true,
     calm: false,
+    speed: false,
     notify: false,
     alwaysTurn: false,
     device: false,
@@ -73,6 +77,7 @@ const MODES: Record<
     share: false,
     conn: false,
     calm: false,
+    speed: false,
     notify: false,
     alwaysTurn: true,
     device: false,
@@ -103,6 +108,7 @@ export function setupSettings(deviceChanged: () => void): OpenJoin {
   const qrSelect = $<HTMLSelectElement>("set-qr");
   const conn = $<HTMLSelectElement>("set-conn");
   const calm = $<HTMLInputElement>("set-calm");
+  const speed = $<HTMLSelectElement>("set-speed");
   const notifyBox = $<HTMLInputElement>("set-notify");
   const visible = $<HTMLInputElement>("set-visible");
   const deviceName = $<HTMLInputElement>("set-name");
@@ -174,6 +180,7 @@ export function setupSettings(deviceChanged: () => void): OpenJoin {
     $("set-visible-field").hidden = !spec.device;
     showName();
     calm.checked = !isLively();
+    speed.value = speedUnit();
     notifyBox.checked = isNotify();
     $("set-notify-blocked").hidden = true;
     shared.value = settings.turn ? "mine" : "ours";
@@ -184,6 +191,7 @@ export function setupSettings(deviceChanged: () => void): OpenJoin {
     $("set-share-field").hidden = !spec.share;
     $("set-conn-field").hidden = !spec.conn;
     $("set-calm-field").hidden = !spec.calm;
+    $("set-speed-field").hidden = !spec.speed;
     $("set-notify-field").hidden = !spec.notify || !("Notification" in window);
     $("set-always-turn-field").hidden = !spec.alwaysTurn;
     $("set-joiner").hidden = next !== "join";
@@ -254,6 +262,7 @@ export function setupSettings(deviceChanged: () => void): OpenJoin {
       deviceChanged();
       // Only write the choice when the box changed, so saving other settings never pins the reduce-motion default.
       if (calm.checked === isLively()) setLively(!calm.checked);
+      if (speed.value !== speedUnit()) setSpeedUnit(speed.value === "bit" ? "bit" : "byte");
     }
   });
 

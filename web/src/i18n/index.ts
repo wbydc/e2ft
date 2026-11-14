@@ -40,6 +40,11 @@ function render(element: HTMLElement, text: Text, attrs: readonly string[]) {
   else element.textContent = value;
 }
 
+/** Renders every bound text again, for a switch that changes how they read (language, speed unit). */
+export function renderBound() {
+  for (const [element, { text, attrs }] of bound) render(element, text, attrs);
+}
+
 /** Sets an element's text (or the given attributes) now and again on every language switch. */
 export function bindText(element: HTMLElement, text: Text, attrs: readonly string[] = []) {
   bound.set(element, { text, attrs });
@@ -70,7 +75,7 @@ export function setLang(next: Lang, save = false) {
     if (page === "terms" || page === "privacy")
       link.setAttribute("href", lang === "en" ? `/${page}` : `/${page}?lang=${lang}`);
   }
-  for (const [element, { text, attrs }] of bound) render(element, text, attrs);
+  renderBound();
 
   if (save) store.save("lang", lang);
 }
@@ -85,20 +90,37 @@ export function setupLang(select: HTMLSelectElement) {
 }
 
 const BYTE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"];
+const BIT_UNITS = ["bit", "kilobit", "megabit", "gigabit", "terabit"];
 
-/** Decimal units, localized ("1.5 MB", "1,5 МБ"). */
-export function fmtBytes(bytes: number): string {
-  let unit = 0;
-  while (bytes >= 1000 && unit < BYTE_UNITS.length - 1) {
-    bytes /= 1000;
-    unit++;
+/** How a transfer speed shows: bytes or bits per second. */
+export type SpeedUnit = "byte" | "bit";
+
+/** `value` in the largest of `units` (steps of 1000) it reaches, localized. */
+function fmtUnits(value: number, units: readonly string[]): string {
+  let step = 0;
+  while (value >= 1000 && step < units.length - 1) {
+    value /= 1000;
+    step++;
   }
 
   return new Intl.NumberFormat(lang, {
     style: "unit",
-    unit: BYTE_UNITS[unit],
-    maximumFractionDigits: unit ? 1 : 0,
-  }).format(bytes);
+    unit: units[step],
+    maximumFractionDigits: step ? 1 : 0,
+  }).format(value);
+}
+
+/** Decimal units, localized ("1.5 MB", "1,5 МБ"). */
+export const fmtBytes = (bytes: number) => fmtUnits(bytes, BYTE_UNITS);
+
+/** A speed in decimal units per second, localized ("5.2 MB/s", "41.6 Mb/s", "41,6 Мбит/c"). */
+export function fmtRate(bytesPerSecond: number, unit: SpeedUnit): string {
+  const [value, units] = unit === "bit" ? [bytesPerSecond * 8, BIT_UNITS] : [bytesPerSecond, BYTE_UNITS];
+
+  return fmtUnits(
+    value,
+    units.map((name) => `${name}-per-second`),
+  );
 }
 
 /** Time left as M:SS, or H:MM:SS from one hour, whole seconds rounded up. */

@@ -5,6 +5,7 @@ export const KEYS = {
   lang: "share-lang",
   theme: "wb-theme",
   calm: "share-calm",
+  speedUnit: "share-speed-unit",
   notify: "share-notify",
   notifyAsked: "share-notify-asked",
   settings: "share-settings",

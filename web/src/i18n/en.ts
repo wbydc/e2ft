@@ -168,6 +168,11 @@ const en = {
   shareTurnHint: "Their browser gets it end-to-end encrypted, for this room only, and never shows or saves it.",
   calmLabel: "Disable animations",
   calmHint: "Turn off the playful effects for transfers and room events. This browser only.",
+  speedSetting: "TRANSFER SPEED",
+  speedBytes: "Bytes per second (MB/s)",
+  speedBits: "Bits per second (Mb/s)",
+  speedHint: "A click on a transfer's progress text switches it too. This browser only.",
+  speedSwitch: "Switch between bytes and bits per second",
   notifyLabel: "Notifications",
   notifyHint:
     "A system notification when the other person joins, a file is offered or a transfer ends while this tab is in the background. This browser only.",
