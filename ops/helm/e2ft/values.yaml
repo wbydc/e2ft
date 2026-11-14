@@ -15,7 +15,7 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
-  host: share.example.com
+  host: e2ft.example.com
   # The Secret holding the certificate for host; empty serves no TLS block.
   tlsSecretName: ""
 

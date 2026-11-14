@@ -72,6 +72,14 @@ as trusted input.
 
 ## Quick start
 
+Run the published image:
+
+```bash
+podman run --rm -p 8080:8080 ghcr.io/wbydc/e2ft:latest
+```
+
+Or build and run from source:
+
 ```bash
 cargo run
 ```
@@ -97,11 +105,11 @@ podman build -f ops/docker/Dockerfile -t e2ft .
 podman run --rm -p 8080:8080 e2ft
 ```
 
-Or run a published release: each release tag publishes the same image to the GitHub container registry of this
-repository, tagged with the version and `latest` (see its Packages page for the full name):
+Or run a published release: each release tag publishes the same image to the GitHub container registry, tagged
+with the version and `latest`:
 
 ```bash
-podman run --rm -p 8080:8080 ghcr.io/<owner>/e2ft:<version>
+podman run --rm -p 8080:8080 ghcr.io/wbydc/e2ft:<version>
 ```
 
 `docker build` and `docker run` work the same way. The image listens on `0.0.0.0:8080` and runs as a nonroot user.
@@ -211,7 +219,7 @@ For `turns:`, enable TLS in coturn, usually on port 5349 with a certificate, and
 
 ```bash
 cd ops/docker
-cp env.example .env   # set TURN_HOST and TURN_SECRET
+cp .env.example .env   # set TURN_HOST and TURN_SECRET
 docker compose up -d --build
 ```
 
@@ -224,11 +232,11 @@ works the same way.
 
 ### Kubernetes (Helm)
 
-`ops/helm/e2ft/` is a Helm chart, published with every release as `oci://ghcr.io/<owner>/charts/e2ft`:
+`ops/helm/e2ft/` is a Helm chart, published with every release as `oci://ghcr.io/wbydc/charts/e2ft`:
 
 ```bash
-helm install e2ft oci://ghcr.io/<owner>/charts/e2ft --version <version> \
-  --set ingress.enabled=true,ingress.host=share.example.com,ingress.tlsSecretName=share-tls \
+helm install e2ft oci://ghcr.io/wbydc/charts/e2ft --version <version> \
+  --set ingress.enabled=true,ingress.host=e2ft.example.com,ingress.tlsSecretName=e2ft-tls \
   --set coturn.enabled=true,coturn.host=turn.example.com,turn.existingSecret=e2ft-turn \
   --set coturn.nodeSelector."kubernetes\.io/hostname"=<node>
 ```
@@ -253,7 +261,7 @@ Proxy HTTP and WebSocket traffic to the app. `/ws` needs the WebSocket upgrade h
 ```nginx
 server {
     listen 443 ssl;
-    server_name share.example.com;
+    server_name e2ft.example.com;
 
     location /ws {
         proxy_pass http://127.0.0.1:8080;
