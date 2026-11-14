@@ -20,7 +20,14 @@ updates:
     cooldown:
       default-days: 7
   - package-ecosystem: docker
-    directory: /
+    directory: /ops/docker
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  # coturn's pin; ops/check.sh fails until the chart and web/scripts/coturn.sh carry the same version.
+  - package-ecosystem: docker-compose
+    directory: /ops/docker
     schedule:
       interval: weekly
     cooldown:

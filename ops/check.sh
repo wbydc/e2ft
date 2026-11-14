@@ -31,4 +31,10 @@ if (unset TURN_SECRET; TURN_HOST=turn.example.com "$CONTAINER" compose -f docker
   echo "compose started without TURN_SECRET" >&2
   exit 1
 fi
+# One coturn version everywhere: an update to one pin (Dependabot reads only the compose file) must move them all.
+coturn=$(grep -ho 'coturn/coturn:[^" ]*' docker/docker-compose.yml helm/e2ft/values.yaml ../web/scripts/coturn.sh | sort -u)
+if [ "$(printf '%s\n' "$coturn" | wc -l)" -ne 1 ]; then
+  printf 'coturn versions differ between the compose file, the chart and web/scripts/coturn.sh:\n%s\n' "$coturn" >&2
+  exit 1
+fi
 echo "ops ok"
