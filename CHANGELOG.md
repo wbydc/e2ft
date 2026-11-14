@@ -7,6 +7,12 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Transfer speed can show in bits per second (Mb/s) instead of bytes (MB/s): a Settings choice kept in this browser,
+  also switched by clicking a transfer's progress text. In Russian the speed now reads in Russian units ("МБ/c")
+  instead of ending in "/s".
+
 ## [0.14.8] - 2026-11-14
 
 ### Added

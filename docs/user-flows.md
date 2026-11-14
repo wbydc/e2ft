@@ -248,6 +248,9 @@ The `Settings` gear opens the saved defaults. The same dialog is prefilled for a
 - `QR CODE ON A NEW ROOM` is `Show` or `Hide` and sets whether the invite QR starts visible.
 - `Disable animations` turns off the playful effects for transfers and room events. It is off by default. A browser
   that asks for reduced motion starts with animations off when the user has not saved a choice.
+- `TRANSFER SPEED` is `Bytes per second (MB/s)` or `Bits per second (Mb/s)` and sets how a running transfer shows
+  its speed. It is bytes by default and applies only to this browser. A click on a transfer's progress text, or Enter
+  on it, switches the unit too, and the choice is kept.
 - `Visible to devices on my network` and `DEVICE NAME` are described in "Find a device on your network". They are
   saved for this browser and are not part of a room's settings.
 - `Notifications` asks for browser permission when it is ticked. If the browser blocks them, the dialog says

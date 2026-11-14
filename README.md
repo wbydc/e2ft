@@ -59,7 +59,7 @@ as trusted input.
 - Your own TURN server, sharing that server with the other person, an always-on relay option, and rooms forced to
   relay only or relay over TCP.
 - Keep-alive of Off, 1, 5, 15 or 30 minutes.
-- English and Russian UI, system, light or dark theme, optional animations, and optional system notifications.
+- English and Russian UI, system, light or dark theme, optional animations, optional system notifications, and transfer speed in bytes or bits per second.
 - Optional Prometheus metrics on a separate address.
 
 ## Requirements

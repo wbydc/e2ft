@@ -379,7 +379,13 @@
             </div>
           </div>
           <div class="xfer-foot">
-            <span id="out-text" class="ui-num ui-muted"></span>
+            <button
+              id="out-text"
+              class="xfer-text ui-num ui-muted"
+              type="button"
+              title="Switch between bytes and bits per second"
+              data-i18n-title="speedSwitch"
+            ></button>
             <button id="out-cancel" class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-i18n="cancelSending">
               Cancel Sending
             </button>
@@ -422,7 +428,13 @@
             </div>
           </div>
           <div class="xfer-foot">
-            <span id="in-text" class="ui-num ui-muted"></span>
+            <button
+              id="in-text"
+              class="xfer-text ui-num ui-muted"
+              type="button"
+              title="Switch between bytes and bits per second"
+              data-i18n-title="speedSwitch"
+            ></button>
             <button
               id="in-cancel"
               class="ui-btn ui-btn--secondary ui-btn--sm"
@@ -682,6 +694,16 @@
           </label>
           <p class="ui-muted hint" id="set-calm-hint" data-i18n="calmHint">
             Turn off the playful effects for transfers and room events. This browser only.
+          </p>
+        </div>
+        <div class="field" id="set-speed-field">
+          <label class="ui-label" for="set-speed" data-i18n="speedSetting">TRANSFER SPEED</label>
+          <select class="ui-input" id="set-speed" name="speed" aria-describedby="set-speed-hint">
+            <option value="byte" data-i18n="speedBytes">Bytes per second (MB/s)</option>
+            <option value="bit" data-i18n="speedBits">Bits per second (Mb/s)</option>
+          </select>
+          <p class="ui-muted hint" id="set-speed-hint" data-i18n="speedHint">
+            A click on a transfer's progress text switches it too. This browser only.
           </p>
         </div>
         <div class="field" id="set-notify-field">

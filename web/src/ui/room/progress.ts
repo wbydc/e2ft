@@ -1,8 +1,9 @@
 // The sending and receiving rows: bar, name, bytes, rate and time left, and Fun mode's end-of-transfer burst.
-import { bindText, fmtBytes, fmtLeft } from "../../i18n/index.ts";
+import { bindText, fmtBytes, fmtLeft, fmtRate } from "../../i18n/index.ts";
 import type { Dir, Finished, Progress } from "../../transfer/events.ts";
 import { $ } from "../dom.ts";
 import { burst, isLively } from "../motion.ts";
+import { speedUnit } from "../speed-unit.ts";
 
 /** `samples` holds the rendered `[time, done]` pairs of the last WINDOW ms, for the recent rate behind the time left. */
 const rates: Partial<Record<Dir, { start: number; last: number; samples: [number, number][] }>> = {};
@@ -89,7 +90,7 @@ export function showProgress(dir: Dir, progress: Progress | null) {
     !progress.waiting && now - rate.start >= WARMUP && recent > 0 && done < total ? (total - done) / recent : null;
 
   bindText($(`${dir}-text`), (messages) => {
-    const speed = secs > 0 && done ? ` · ${fmtBytes(done / secs)}/s` : "";
+    const speed = secs > 0 && done ? ` · ${fmtRate(done / secs, speedUnit())}` : "";
     const timeLeft = left === null ? "" : ` · ${messages.timeLeft(fmtLeft(left))}`;
 
     return messages.progress(fmtBytes(done), fmtBytes(total)) + speed + timeLeft;

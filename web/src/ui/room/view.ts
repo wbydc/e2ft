@@ -10,6 +10,7 @@ import type { Dir } from "../../transfer/events.ts";
 import { $ } from "../dom.ts";
 import { leaveLobby } from "../home/devices.ts";
 import { burst } from "../motion.ts";
+import { flipSpeedUnit } from "../speed-unit.ts";
 import { setStatus } from "../status.ts";
 import type { Kind } from "../status.ts";
 import { setConnInfo } from "./conn.ts";
@@ -55,7 +56,10 @@ export function wireRoomControls(controls: RoomControls): void {
     controls.send(event.dataTransfer?.files[0]);
   });
 
-  for (const dir of ["out", "in"] as const) $(`${dir}-cancel`).addEventListener("click", () => controls.cancel(dir));
+  for (const dir of ["out", "in"] as const) {
+    $(`${dir}-cancel`).addEventListener("click", () => controls.cancel(dir));
+    $(`${dir}-text`).addEventListener("click", flipSpeedUnit);
+  }
   $("leave").addEventListener("click", () => controls.leave());
   // A fresh page clears the ended room's state; `?new` makes it create the next room right away.
   $("restart").addEventListener("click", () => location.assign("/?new"));

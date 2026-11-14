@@ -250,6 +250,7 @@ The protocol details are in [protocol.md](protocol.md).
 | `web/src/ui/motion.ts` | The optional animations. |
 | `web/src/ui/theme.ts` | The Auto, Light and Dark theme button. |
 | `web/src/ui/notify.ts` | Optional system notifications. |
+| `web/src/ui/speed-unit.ts` | Transfer speed in bytes or bits per second. |
 | `web/src/ui/home/settings.ts` | The settings, custom room and Join dialogs. |
 | `web/src/ui/home/notify-card.ts` | The first-visit notifications card. |
 | `web/src/ui/home/devices.ts` | The list of devices on this network, one ask at a time, the incoming ask dialog (a device declined once is declined without a dialog for 30 seconds), and starting a discovered room. |
