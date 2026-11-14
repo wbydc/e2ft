@@ -17,6 +17,7 @@ import {
   status,
   transfer,
 } from "./fixtures.ts";
+import { SHORT_KEEP_ALIVE } from "../../playwright.config.ts";
 
 registerHooks();
 
@@ -184,11 +185,10 @@ for (const cancellingSide of ["sender", "receiver"] as const) {
 }
 
 test("the keep-alive running out while paused fails the transfer on both sides and keeps no partial file", async () => {
-  test.setTimeout(180_000);
-  const { a: creator, b: joiner, net: outageControl } = await outagePair("chromium", {}, 60);
+  const { a: creator, b: joiner, net: outageControl } = await outagePair("chromium", {}, SHORT_KEEP_ALIVE);
   const name = "expired.bin";
   await pauseMidTransfer(creator, joiner, outageControl, name);
-  await expect(status(creator)).toContainText("The other person left", { timeout: 90_000 });
+  await expect(status(creator)).toContainText("The other person left", { timeout: (SHORT_KEEP_ALIVE + 20) * 1000 });
   outageControl.restore();
   await expect(status(joiner)).toContainText("The room is gone", { timeout: 30_000 });
   await expect(creator.page.locator("#out-row")).toBeHidden();

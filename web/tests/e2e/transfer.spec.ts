@@ -125,15 +125,15 @@ test("Firefox without Service Workers saves through OPFS", async () => {
   await expect(joiner.page.locator("#conn-detail")).toContainText("This side: host");
 });
 
-// Flaky, its 5 s default wait for "received. Tap Save" sometimes times out under load; skipped until fixed.
-test.skip("iPhone keeps a received file until Save, which hands over the whole file", async () => {
+test("iPhone keeps a received file until Save, which hands over the whole file", async () => {
   const { a: creator, b: joiner } = await connectedPair(await launch("iphone"));
   await expect(joiner.page.locator("#ios-note")).toBeVisible();
   const file = await makeFile("to-iphone.bin", 8 << 20);
   await creator.page.setInputFiles("#file", file.path);
   await expect(joiner.page.locator("#offer-accept")).toHaveText("Receive");
   await joiner.page.click("#offer-accept");
-  await expect(status(joiner)).toContainText("to-iphone.bin received. Tap Save");
+  // The whole 8 MB arrives before this text, which can take longer than the default wait under load.
+  await expect(status(joiner)).toContainText("to-iphone.bin received. Tap Save", { timeout: 60_000 });
   await expect(status(creator)).toContainText("was saved by the other person");
   const save = joiner.page.locator("#history .hist").first().getByRole("button", { name: "Save" });
   await expect(save).toBeEnabled();

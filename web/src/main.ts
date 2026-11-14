@@ -28,7 +28,7 @@ function fieldError(message: Text | null) {
 function init() {
   setupTheme($("theme"));
   setupLang($<HTMLSelectElement>("lang"));
-  void setupSaving();
+  setupSaving();
 
   $("create").addEventListener("click", () => {
     const settings = loadSettings();

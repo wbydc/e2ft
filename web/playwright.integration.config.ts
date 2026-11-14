@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { KEEP_ALIVES } from "./playwright.config.ts";
 
 // Needs the loopback coturns from scripts/coturn.sh; the secret is the same test value that script defaults to.
 export const TURN_SECRET = process.env.E2E_TURN_SECRET ?? "e2e-loopback-turn-secret-0123456789";
@@ -12,7 +13,7 @@ const server = (port: number, secret: string) => ({
   command: "cargo run --release",
   cwd: "..",
   url: `http://127.0.0.1:${port}/`,
-  env: { ADDR: `127.0.0.1:${port}`, STUN_URLS: "", TURN_URLS: "turn:127.0.0.1:3481", TURN_SECRET: secret },
+  env: { ADDR: `127.0.0.1:${port}`, STUN_URLS: "", TURN_URLS: "turn:127.0.0.1:3481", TURN_SECRET: secret, KEEP_ALIVES },
   timeout: 300_000,
   reuseExistingServer: false,
 });
