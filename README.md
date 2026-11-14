@@ -224,11 +224,12 @@ docker compose up -d
 ```
 
 Compose refuses to start without `TURN_SECRET` and `TURN_HOST`. It runs the release image of this checkout's version
-from `ghcr.io/wbydc/e2ft`; to run your own build, build it (see Build and run) and set `E2FT_IMAGE` in `.env`. coturn runs on the host network, because relay addresses must be the host's
-own, so this works on Linux and not on Docker Desktop. Its settings are in `ops/docker/turnserver.conf`; the secret
-and realm are added in memory when it starts and never appear in a command line. Open the TURN ports above in the
-firewall. The app listens on `127.0.0.1:8080`; put a TLS reverse proxy in front of it (below). `podman compose`
-works the same way.
+from `ghcr.io/wbydc/e2ft`; to run your own build, build it (see Build and run) and set `E2FT_IMAGE` in `.env`. coturn
+runs on the host network, because relay addresses must be the host's own, so this works on Linux and not on Docker
+Desktop. Its settings are in `ops/docker/turnserver.conf`; the secret and realm are added in memory when it starts and
+never appear in a command line. A STUN request checks coturn's health every 30 seconds (`docker compose ps`). Open the
+TURN ports above in the firewall. The app listens on `127.0.0.1:8080`; put a TLS reverse proxy in front of it (below).
+`podman compose` works the same way.
 
 ### Kubernetes (Helm)
 

@@ -42,6 +42,13 @@ services:
         if [ -n "$$EXTERNAL_IP" ]; then printf 'external-ip=%s\n' "$$EXTERNAL_IP" >> "$$conf"; fi
         unset TURN_SECRET
         exec turnserver -c "$$conf"
+    # A STUN binding request to the listening port; host networking makes 127.0.0.1 the host's loopback.
+    healthcheck:
+      test: [CMD, turnutils_stunclient, -t, "2000", -p, "3478", 127.0.0.1]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     volumes:
       - ./turnserver.conf:/etc/coturn/base.conf:ro
     tmpfs:
