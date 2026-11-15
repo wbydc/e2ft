@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "fmt:check": "oxfmt --check",
     "style": "node scripts/check-style.mjs src tests",
-    "test": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'",
+    "test": "node --import amaro/transform --disable-warning=ExperimentalWarning --test 'src/**/*.test.ts'",
     "lint": "oxlint --deny-warnings --report-unused-disable-directives",
     "fmt": "oxfmt",
     "e2e": "playwright test",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@types/node": "^24.0.0",
+    "amaro": "1.3.0",
     "esbuild": "0.28.2",
     "oxc-parser": "0.158.0",
     "oxfmt": "0.77.0",
