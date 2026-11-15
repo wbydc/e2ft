@@ -25,6 +25,10 @@ an older peer stop working). A patch has only fixes.
 - A transfer's speed is the rate over the last 8 seconds, the same one its time left uses, instead of the average
   since the start, so it follows the transfer as it speeds up or slows down.
 - CI runs the end-to-end tests as three parallel shards and lists each test's duration.
+- The image builds on Node.js 26.13.0, Rust 1.99.1 and the current distroless base; sha1, hmac and md-5 moved to their
+  digest 0.11 releases and TypeScript to 7.
+- CI builds the image and runs the later stages for a change to the image's own files only; before, every stage
+  after the skipped lint jobs was skipped too.
 - The Dockerfile moved to `ops/docker/Dockerfile`; build with `-f ops/docker/Dockerfile` from the repository root.
 - The tuning settings (`CHUNK_SIZE`, `WINDOW`, `KEEP_ALIVES`, `ACCESS_LEN` and the rest) are read when the server
   starts instead of when it is built, so the published image takes them as environment variables (`-e`, compose
