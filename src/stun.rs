@@ -1,7 +1,7 @@
 //! The few STUN and TURN messages the health check sends (RFC 8489, RFC 8656): requests with plain attributes and
 //! an optional MESSAGE-INTEGRITY, and the reply's error code and attributes. No XOR-mapped addresses, no FINGERPRINT.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use md5::{Digest, Md5};
 use sha1::Sha1;
 

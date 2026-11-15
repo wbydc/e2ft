@@ -4,7 +4,7 @@
 //! as long as its holder refreshes it, so credentials are the one thing the server can ration.
 
 use base64::{Engine, engine::general_purpose::STANDARD};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde_json::{Value, json};
 use sha1::Sha1;
 use std::{
