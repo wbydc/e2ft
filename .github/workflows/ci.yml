@@ -57,8 +57,11 @@ jobs:
       rust: ${{ needs.changes.outputs.rust == 'true' }}
       node: ${{ needs.changes.outputs.node == 'true' }}
 
+  # A stage whose jobs all skipped counts as skipped, and GitHub would skip the stages after it with their checks
+  # unreported: an image-only change would never build the image and never satisfy the ruleset.
   build:
     needs: [changes, lint]
+    if: ${{ !cancelled() && !failure() }}
     uses: ./.github/workflows/build.yml
     with:
       rust: ${{ needs.changes.outputs.rust == 'true' }}
@@ -67,6 +70,7 @@ jobs:
 
   test:
     needs: [changes, build]
+    if: ${{ !cancelled() && !failure() }}
     uses: ./.github/workflows/test.yml
     with:
       rust: ${{ needs.changes.outputs.rust == 'true' }}

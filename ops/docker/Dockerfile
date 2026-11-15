@@ -1,4 +1,4 @@
-FROM node:24.22.2-bookworm-slim AS web
+FROM node:26.13.0-bookworm-slim AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -7,7 +7,7 @@ RUN npm ci --ignore-scripts
 COPY . /app/
 RUN npm run build
 
-FROM rust:1.98.1-slim-bookworm AS server
+FROM rust:1.99.1-slim-bookworm AS server
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 # Dependencies alone, in a layer the registry cache keeps (buildx does not export cache mounts).
@@ -17,7 +17,7 @@ COPY --from=web /app/web/dist ./web/dist
 RUN touch src/main.rs && cargo build --release --locked --offline
 
 # nonroot tag, pinned by digest
-FROM gcr.io/distroless/cc-debian12@sha256:9dac0a79194e45a7da0158a9c6da57b217585af0786db3845d1f0ec1a0dd182f
+FROM gcr.io/distroless/cc-debian12@sha256:e5d81ddde149641e2a9ba55be4545bc125c67de07508b03ba4c22e6eb0ded5aa
 COPY --from=server /app/target/release/e2ft /e2ft
 ENV ADDR=0.0.0.0:8080
 EXPOSE 8080

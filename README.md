@@ -65,8 +65,8 @@ as trusted input.
 
 ## Requirements
 
-- Rust 1.85 or newer. The crate uses edition 2024. The container image builds with Rust 1.98.1.
-- Node.js 24 to build the frontend, which `cargo build` embeds from `web/dist`. The image pins Node 24.22.2.
+- Rust 1.85 or newer. The crate uses edition 2024. The container image builds with Rust 1.99.1.
+- Node.js 24 or newer to build the frontend, which `cargo build` embeds from `web/dist`. The image pins Node 26.13.0.
 - Chromium and Firefox are the tested browsers; the end-to-end suite runs both. Safari and iOS use fallback save
   paths but are not covered by the automated tests.
 - A TURN server if the two networks cannot connect directly.
