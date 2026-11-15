@@ -7,7 +7,7 @@ repository = "https://github.com/wbydc/e2ft"
 
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
-base64 = "0.22"
+base64 = "0.23"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 hmac = "0.13"
 # The TURN long-term credential key in the health check; on the same digest release as hmac and sha1.
