@@ -1,6 +1,6 @@
 [package]
 name = "e2ft"
-version = "0.14.9"
+version = "0.15.0"
 edition = "2024"
 publish = false
 repository = "https://github.com/wbydc/e2ft"

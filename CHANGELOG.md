@@ -7,6 +7,8 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-15
+
 ### Added
 
 - Transfer speed can show in bits per second (Mb/s) instead of bytes (MB/s): a Settings choice kept in this browser,
