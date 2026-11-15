@@ -1,5 +1,5 @@
 // The tuning settings: the server reads them from its environment at startup, checks them, and writes them into
-// the page as the `#config` JSON block, which this module reads once at import. The defaults below match the
+// the page as the `#config` JSON block, which this module reads once, at import. The defaults below match the
 // server's (src/settings.rs) and serve unit tests, which run without a page. What each one means is written where
 // it is used: transfer/wire.ts, transfer/constants.ts, crypto/invite.ts, net/settings.ts.
 
@@ -26,4 +26,3 @@ export type Config = typeof DEFAULTS;
 const block = typeof document === "undefined" ? null : document.getElementById("config");
 
 export const CONFIG: Config = block?.textContent ? (JSON.parse(block.textContent) as Config) : DEFAULTS;
-
