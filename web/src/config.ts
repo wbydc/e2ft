@@ -26,3 +26,4 @@ export type Config = typeof DEFAULTS;
 const block = typeof document === "undefined" ? null : document.getElementById("config");
 
 export const CONFIG: Config = block?.textContent ? (JSON.parse(block.textContent) as Config) : DEFAULTS;
+
