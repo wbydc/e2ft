@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn only_the_current_content_hash_is_stamped() {
-        let assets = Assets::load(None).unwrap();
+        let assets = Assets::load(None, &crate::settings::Settings::default()).unwrap();
         let stamp = assets.get("app.js").unwrap().stamp();
 
         assert!(stamped(&assets, "app.js", Some(&format!("v={stamp}"))));
@@ -141,7 +141,7 @@ mod tests {
 
     #[tokio::test]
     async fn legal_pages_serve_the_right_language() {
-        let assets = Assets::load(Some(&sample())).unwrap();
+        let assets = Assets::load(Some(&sample()), &crate::settings::Settings::default()).unwrap();
 
         for (uri, page, file, lang) in [
             ("/terms", "terms", "terms.html", "en"),
@@ -172,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn legal_pages_get_the_page_headers() {
-        let assets = Assets::load(Some(&sample())).unwrap();
+        let assets = Assets::load(Some(&sample()), &crate::settings::Settings::default()).unwrap();
         let res = security_headers(legal(&assets, Uri::from_static("/terms"), "terms")).await;
 
         assert!(

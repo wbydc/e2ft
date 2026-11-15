@@ -66,7 +66,7 @@ as trusted input.
 ## Requirements
 
 - Rust 1.85 or newer. The crate uses edition 2024. The container image builds with Rust 1.98.1.
-- Node.js 24 to build the frontend. `build.rs` runs the web build during `cargo build`. The image pins Node 24.22.2.
+- Node.js 24 to build the frontend, which `cargo build` embeds from `web/dist`. The image pins Node 24.22.2.
 - Chromium and Firefox are the tested browsers; the end-to-end suite runs both. Safari and iOS use fallback save
   paths but are not covered by the automated tests.
 - A TURN server if the two networks cannot connect directly.
@@ -82,16 +82,18 @@ podman run --rm -p 8080:8080 ghcr.io/wbydc/e2ft:latest
 Or build and run from source:
 
 ```bash
-cargo run
+npm --prefix web ci && npm --prefix web run serve
 ```
 
-The build runs `npm ci` when `web/node_modules` is missing, then `npm run build` in `web/`, and embeds the result
-in the binary. Open <http://127.0.0.1:8080> in two browser windows to test a transfer.
+`npm run serve` builds the frontend into `web/dist`, then runs `cargo run`, which embeds it in the binary. Arguments
+after `--` go to cargo, as in `npm run serve -- --release`. After a frontend change, build it again before cargo:
+`cargo run` alone embeds whatever `web/dist` holds. Open <http://127.0.0.1:8080> in two browser windows to test a
+transfer.
 
 To let other devices on the network reach the server:
 
 ```bash
-ADDR=0.0.0.0:8080 cargo run
+ADDR=0.0.0.0:8080 npm --prefix web run serve
 ```
 
 The default STUN server is Google's public server. Set `STUN_URLS=` (empty) to disable STUN. To force this
@@ -153,19 +155,21 @@ rooms and a second instance would not see the first one's rooms.
 
 The settings are read by `src/config.rs` and `src/ice.rs`.
 
-### Build-time settings
+### Tuning settings
 
-The transfer tuning, the invite key lengths and the keep-alive choices are fixed when the app is built. Each one
-has a default in code; set an environment variable of the same name to override it. A value that is not a number,
-is out of bounds or does not fit with another setting stops the build with a message naming the variable.
+The transfer tuning, the invite key lengths and the keep-alive choices are read from the environment when the server
+starts, like the settings above. The server checks them and hands them to the page, so one image serves any values.
+A value that is not a number, is out of bounds or does not fit with another setting stops the server with a message
+naming the variable.
 
 ```bash
-CHUNK_SIZE=131072 cargo run
-podman build --build-arg CHUNK_SIZE=131072 --build-arg KEEP_ALIVES=0,120,600 --build-arg KEEP_ALIVE=120 -f ops/docker/Dockerfile -t e2ft .
+CHUNK_SIZE=131072 npm --prefix web run serve
+podman run --rm -p 8080:8080 -e CHUNK_SIZE=131072 -e KEEP_ALIVES=0,120,600 -e KEEP_ALIVE=120 ghcr.io/wbydc/e2ft:latest
 ```
 
-To keep overrides in a file, put `NAME=value` lines in a `.env` at the repo root (it is gitignored) and load it into
-the shell before building: `set -a; . ./.env; set +a`. The builds do not read `.env` themselves.
+In the compose file they go under the `e2ft` service's `environment`; in the Helm chart, in `extraEnv`. To keep
+overrides in a file for local runs, put `NAME=value` lines in a `.env` at the repo root (it is gitignored) and load
+it into the shell: `set -a; . ./.env; set +a`. The server does not read `.env` itself.
 
 | Variable | Default | Bounds | Meaning |
 |---|---|---|---|
@@ -185,10 +189,10 @@ the shell before building: `set -a; . ./.env; set +a`. The builds do not read `.
 | `KEEP_ALIVES` | `0,60,300,900,1800` | each 0 to 7200, ascending, at most 8 | The keep-alive choices in seconds. The server accepts only these. |
 | `KEEP_ALIVE` | `300` | one of `KEEP_ALIVES` | The default keep-alive. |
 
-`ACCESS_LEN`, `KEEP_ALIVES` and `KEEP_ALIVE` are built into both the page and the server, so pass them to the whole
-build (`ops/docker/Dockerfile` hands them to both stages). Builds with different `ACCESS_LEN`, `SECRET_LEN`,
-`KEEP_ALIVES` or `KEEP_ALIVE` cannot read each other's invites; during a rolling update that changes them, an invite
-made on an old instance may fail on a new one. The values end up in the public `app.js`, so never put a secret in them.
+Servers with different `ACCESS_LEN`, `SECRET_LEN`, `KEEP_ALIVES` or `KEEP_ALIVE` cannot read each other's invites;
+during a rolling update that changes them, an invite made on an old instance may fail on a new one. A page loaded
+before a restart keeps the values it was served with until it reloads. The values are in the public page, so never
+put a secret in them.
 
 ### TURN relay
 
@@ -335,7 +339,7 @@ a slot the page does not have. The folder is styling and markup only; scripts ca
 `web/tests/assets/` is a small example:
 
 ```bash
-ASSETS_DIR=web/tests/assets cargo run
+ASSETS_DIR=web/tests/assets npm --prefix web run serve
 podman run -v ./my-brand:/assets:ro -e ASSETS_DIR=/assets e2ft
 ```
 

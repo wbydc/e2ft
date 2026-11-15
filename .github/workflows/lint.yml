@@ -3,12 +3,22 @@ name: lint
 
 on:
   workflow_call:
+    inputs:
+      rust:
+        description: Rust code changed (src/, tests/, Cargo.*).
+        type: boolean
+        required: true
+      node:
+        description: Frontend code changed (web/).
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   typecheck:
+    if: inputs.node
     runs-on: ubuntu-24.04
     container: node:24.22.2-bookworm-slim
     timeout-minutes: 15
@@ -23,6 +33,7 @@ jobs:
       - run: npm run typecheck
 
   fmt-check:
+    if: inputs.node
     runs-on: ubuntu-24.04
     container: node:24.22.2-bookworm-slim
     timeout-minutes: 15
@@ -37,6 +48,7 @@ jobs:
       - run: npm run fmt:check
 
   oxlint:
+    if: inputs.node
     runs-on: ubuntu-24.04
     container: node:24.22.2-bookworm-slim
     timeout-minutes: 15
@@ -51,6 +63,7 @@ jobs:
       - run: npm run lint
 
   style:
+    if: inputs.node
     runs-on: ubuntu-24.04
     container: node:24.22.2-bookworm-slim
     timeout-minutes: 15
@@ -64,16 +77,18 @@ jobs:
       - run: npm ci
       - run: npm run style
 
+  # Compiling needs web/dist to exist, not its contents.
   clippy:
+    if: inputs.rust
     runs-on: ubuntu-24.04
+    container: rust:1.98.1-bookworm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/node
       - uses: ./.github/actions/rust
         with:
           components: clippy
           cache: clippy
-      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: mkdir -p web/dist && cargo clippy --locked --all-targets -- -D warnings

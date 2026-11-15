@@ -26,6 +26,14 @@ an older peer stop working). A patch has only fixes.
   since the start, so it follows the transfer as it speeds up or slows down.
 - CI runs the end-to-end tests as three parallel shards and lists each test's duration.
 - The Dockerfile moved to `ops/docker/Dockerfile`; build with `-f ops/docker/Dockerfile` from the repository root.
+- The tuning settings (`CHUNK_SIZE`, `WINDOW`, `KEEP_ALIVES`, `ACCESS_LEN` and the rest) are read when the server
+  starts instead of when it is built, so the published image takes them as environment variables (`-e`, compose
+  `environment`, the chart's new `extraEnv`). **Breaking for self-built images:** `--build-arg` values for them are
+  now ignored; pass them to the running container. A bad value still stops the server, now at startup.
+- `cargo build` no longer builds the frontend: run `npm run build` in `web/` first, or `npm run serve` there, which
+  builds both and starts the server.
+- CI runs each stage in its own workflow file, one job per tool, and skips the Rust or the frontend jobs when a
+  change does not touch that side.
 
 ### Fixed
 

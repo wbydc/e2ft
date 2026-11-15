@@ -3,6 +3,7 @@
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use crate::discover::Cidr;
+use crate::settings::Settings;
 
 /// Where the server listens without `ADDR`.
 pub(crate) const ADDR: &str = "127.0.0.1:8080";
@@ -21,6 +22,8 @@ pub(crate) struct Config {
     pub(crate) room_wait: Duration,
     /// `ROOMS_PER_CLIENT`: live rooms one client address (IPv6 by its /64) may have created, 16 by default.
     pub(crate) rooms_per_client: u32,
+    /// The tuning settings both halves share (src/settings.rs).
+    pub(crate) settings: Settings,
 }
 
 impl Config {
@@ -58,6 +61,7 @@ impl Config {
             trusted_proxies,
             room_wait: Duration::from_secs(room_wait),
             rooms_per_client,
+            settings: Settings::from_env().unwrap_or_else(|err| panic!("{err}")),
         }
     }
 }

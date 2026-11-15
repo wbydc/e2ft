@@ -186,7 +186,7 @@ classes, and pure helpers stay functions. All DOM code lives under `ui/`.
 | File | Role |
 |---|---|
 | `web/src/main.ts` | Boots the home page: create, join form, invite links, QR scanner wiring. |
-| `web/src/config.ts` | The build-time settings: the defaults, or the values the build injected. |
+| `web/src/config.ts` | The tuning settings: the values the server wrote into the page, or the defaults without a page. |
 | `web/src/store.ts` | Names every `localStorage` key and wraps reads and writes; blocked storage reads as empty. |
 
 ### A room
@@ -443,20 +443,19 @@ response itself.
 
 ## Build
 
-1. `build.rs` runs on every build unless `E2FT_WEB_PREBUILT` is set. It runs `npm ci` when `web/node_modules` is
-   missing, then `npm run build`, and reruns when `web/src`, `web/public`, `web/scripts` or the package files
-   change.
-2. `npm run build` clears `web/dist`, copies `web/public/` into it and bundles the frontend with esbuild.
-3. esbuild produces three files with the same settings (bundle, minify, ES module output, targets Chrome 120,
+The frontend and the server build separately: `npm run build` in `web/` first, then `cargo build`, which embeds
+whatever `web/dist/` holds. `npm run serve` runs both, then the server.
+
+1. `npm run build` clears `web/dist`, copies `web/public/` into it and bundles the frontend with esbuild.
+2. esbuild produces three files with the same settings (bundle, minify, ES module output, targets Chrome 120,
    Firefox 120 and Safari 17): `app.js` from `src/main.ts`, `jsqr.js` from the vendored jsQR, and `ristretto.js`
    from `src/crypto/ristretto.ts`. The two lazy chunks stay external imports in `app.js`: `ristretto.js` is loaded
    with `import()` when a room starts, and `jsqr.js` only when the scanner needs it.
-4. `rust-embed` embeds `web/dist/` into the server binary at compile time.
+3. `rust-embed` embeds `web/dist/` into the server binary at compile time.
 
-Build-time settings (README) override the defaults in `web/src/config.ts`: `web/scripts/config.mjs` checks the
-env values and `build.mjs` injects them into `app.js` through esbuild's `define`. `build.rs` checks the server's
-copies (`ACCESS_LEN`, `KEEP_ALIVES`, `KEEP_ALIVE`), writes them into a generated Rust file, and reruns when any
-setting's variable changes.
+The tuning settings (README) are not part of the build. `src/settings.rs` reads and checks them at startup, the
+server uses its copies of `ACCESS_LEN`, `KEEP_ALIVES` and `KEEP_ALIVE`, and the page gets all of them (Assets
+folder below). `web/src/config.ts` reads them from the page once, at import.
 
 ## Assets folder
 
@@ -469,14 +468,15 @@ table, never the filesystem:
 3. `app.js` with `?v=<first 12 hex of SHA-256>` on its two lazy import URLs.
 4. `index.html`: each `ASSETS_DIR/slots/<name>.html` replaces the region between `<!-- slot:<name> -->` and
    `<!-- /slot:<name> -->` (without one, the default inside the markers stays; the markers go either way), then every
-   local `src` or `href` that names a file in the table gets its stamp, then the version goes into the footer. The
-   stamps prevent a cache or CDN from pairing a new page with an old script.
+   local `src` or `href` that names a file in the table gets its stamp, then the version goes into the footer and the
+   tuning settings, as JSON, into `<script type="application/json" id="config">`. The stamps prevent a cache or CDN
+   from pairing a new page with an old script.
 
 A slot file with no matching marker, an unbalanced marker or an unreadable `ASSETS_DIR` stops the server at startup.
 Without the folder the app is the neutral default. `web/tests/assets/` is an example folder.
 
 `ops/docker/Dockerfile` builds the same thing in two stages: a Node stage runs the frontend build, and a Rust stage
-compiles the server with `E2FT_WEB_PREBUILT=1` so it does not run npm again. The runtime image is distroless, runs as
+compiles the server over its `web/dist`. The runtime image is distroless, runs as
 a non-root user and listens on `0.0.0.0:8080`. The build context is the repository root. `ops/` also holds the
 self-hosting kits: `ops/docker/docker-compose.yml` (the app and a host-network coturn) and the Helm chart
 `ops/helm/e2ft/` (the app, optionally coturn), which each release publishes next to the image.

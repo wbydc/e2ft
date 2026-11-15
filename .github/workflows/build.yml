@@ -1,28 +1,65 @@
-# Stage 3: the server with the embedded frontend, and the production image. Called by ci.yml.
+# Stage 3: the frontend, the server, and the production image. Called by ci.yml.
 name: build
 
 on:
   workflow_call:
+    inputs:
+      rust:
+        description: Rust code changed (src/, tests/, Cargo.*).
+        type: boolean
+        required: true
+      node:
+        description: Frontend code changed (web/).
+        type: boolean
+        required: true
+      docker:
+        description: The image's own files changed (ops/docker/).
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
-  cargo:
+  # The frontend the server embeds, shared with the later jobs that start a server without Node.
+  web:
+    if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
+    container: node:24.22.2-bookworm-slim
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-dist
+          path: web/dist/
+          retention-days: 1
+
+  # Compiling needs web/dist to exist, not its contents.
+  cargo:
+    if: inputs.rust
+    runs-on: ubuntu-24.04
+    container: rust:1.98.1-bookworm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/node
       - uses: ./.github/actions/rust
         with:
           cache: debug
-      - run: cargo build --locked --all-targets
+      - run: mkdir -p web/dist && cargo build --locked --all-targets
 
   # Not pushed; its cache serves the release image.
   docker:
+    if: inputs.node || inputs.rust || inputs.docker
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

@@ -65,8 +65,9 @@ enum Hello {
     Create {
         room: String,
         token: String,
-        #[serde(rename = "keepAlive", default = "default_keep_alive")]
-        keep_alive: u64,
+        /// The creator's choice, or KEEP_ALIVE when its hello has none.
+        #[serde(rename = "keepAlive")]
+        keep_alive: Option<u64>,
     },
     Join {
         room: String,
@@ -86,18 +87,9 @@ enum HelloRole {
     Joiner,
 }
 
-// ACCESS_LEN, KEEP_ALIVES and KEEP_ALIVE, from build.rs. KEEP_ALIVES is Off, 1, 5, 15 or 30 minutes
-// by default; its cap bounds how long a room can sit in memory.
-include!(concat!(env!("OUT_DIR"), "/settings.rs"));
-
-/// KEEP_ALIVE (5 minutes by default) unless the creator's hello says otherwise.
-fn default_keep_alive() -> u64 {
-    KEEP_ALIVE
-}
-
 /// The room id (accessKey) is ACCESS_LEN (8 by default) base64url chars.
-pub(crate) fn valid_room(k: &str) -> bool {
-    b64url_of_len(k, ACCESS_LEN)
+pub(crate) fn valid_room(k: &str, access_len: usize) -> bool {
+    b64url_of_len(k, access_len)
 }
 
 /// The seat token stays 22 base64url chars.
@@ -254,8 +246,10 @@ async fn peer(socket: WebSocket, app: Arc<App>, address: IpAddr) {
                             room,
                             token,
                             keep_alive,
-                        } if valid_room(&room) && valid_token(&token) => {
-                            if !KEEP_ALIVES.contains(&keep_alive) {
+                        } if valid_room(&room, app.settings.access_len) && valid_token(&token) => {
+                            // KEEP_ALIVES caps how long a room can sit in memory.
+                            let keep_alive = keep_alive.unwrap_or(app.settings.keep_alive);
+                            if !app.settings.keep_alives.contains(&keep_alive) {
                                 app.metrics.error("keep-alive");
                                 let _ = tx.try_send(ctl_err("keep-alive"));
                                 break;
@@ -278,7 +272,9 @@ async fn peer(socket: WebSocket, app: Arc<App>, address: IpAddr) {
                             let _ = tx.try_send(ctl("created"));
                             room
                         }
-                        Hello::Join { room, token } if valid_room(&room) && valid_token(&token) => {
+                        Hello::Join { room, token }
+                            if valid_room(&room, app.settings.access_len) && valid_token(&token) =>
+                        {
                             let r =
                                 app.rooms
                                     .lock()
@@ -298,7 +294,7 @@ async fn peer(socket: WebSocket, app: Arc<App>, address: IpAddr) {
                             room
                         }
                         Hello::Rejoin { room, token, role }
-                            if valid_room(&room) && valid_token(&token) =>
+                            if valid_room(&room, app.settings.access_len) && valid_token(&token) =>
                         {
                             let role = match role {
                                 HelloRole::Creator => Role::Creator,
@@ -416,10 +412,11 @@ mod tests {
 
     #[test]
     fn hello_keys_have_fixed_lengths() {
-        let room = "Vq3k_9Za".repeat(2)[..ACCESS_LEN].to_owned();
-        assert!(valid_room(&room));
-        assert!(!valid_room(&format!("{room}V")));
-        assert!(!valid_room(&format!("{}*", &room[1..])));
+        let access_len = crate::settings::Settings::default().access_len;
+        let room = "Vq3k_9Za".repeat(2)[..access_len].to_owned();
+        assert!(valid_room(&room, access_len));
+        assert!(!valid_room(&format!("{room}V"), access_len));
+        assert!(!valid_room(&format!("{}*", &room[1..]), access_len));
         assert!(valid_token("Vq3k_9ZaVq3k_9ZaVq3k-9"));
         assert!(!valid_token("Vq3k_9Za"));
         assert!(!valid_token("Vq3k_9ZaVq3k_9ZaVq3k/9"));

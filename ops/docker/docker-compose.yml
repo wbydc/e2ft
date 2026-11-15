@@ -17,6 +17,7 @@ services:
       STUN_URLS: stun:${TURN_HOST:?set TURN_HOST in .env}:3478
       TURN_URLS: turn:${TURN_HOST}:3478?transport=udp,turn:${TURN_HOST}:3478?transport=tcp
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      # The tuning settings in the README go here too, such as CHUNK_SIZE: "131072" or KEEP_ALIVES: 0,120,600.
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

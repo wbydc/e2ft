@@ -12,6 +12,7 @@ mod lobby;
 mod metrics;
 mod relay;
 mod rooms;
+mod settings;
 mod sockets;
 mod stun;
 
@@ -29,6 +30,7 @@ use lobby::Lobby;
 use metrics::Metrics;
 use relay::Tx;
 use rooms::Rooms;
+use settings::Settings;
 use sockets::{DISCOVER_PER_CLIENT, PER_CLIENT, Sockets};
 
 /// What every request handler shares: the files to serve, the rooms, open /ws and /discover sockets per client, the next peer id, the
@@ -47,6 +49,7 @@ struct App {
     lobby_key: [u8; 32],
     trusted_proxies: Vec<Cidr>,
     room_wait: std::time::Duration,
+    settings: Settings,
 }
 
 #[tokio::main]
@@ -58,7 +61,7 @@ async fn main() {
     }
 
     let config = Config::from_env();
-    let assets = Assets::load(config.assets_dir.as_deref()).unwrap_or_else(|err| panic!("{err}"));
+    let assets = Assets::load(config.assets_dir.as_deref(), &config.settings).unwrap_or_else(|err| panic!("{err}"));
     let has_legal = assets.has_legal();
     let app = Arc::new(App {
         assets,
@@ -72,6 +75,7 @@ async fn main() {
         lobby_key: discover::random(),
         trusted_proxies: config.trusted_proxies,
         room_wait: config.room_wait,
+        settings: config.settings,
     });
     tokio::spawn(relay::sweep(app.clone()));
     if let Some(addr) = config.metrics_addr {

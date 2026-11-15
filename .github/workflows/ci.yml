@@ -17,20 +17,60 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # What changed decides which jobs run: a skipped job reports itself as skipped, which the ruleset accepts. A
+  # change to CI itself, or a release tag, runs everything.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust == 'true' || steps.filter.outputs.ci == 'true' || github.ref_type == 'tag' }}
+      node: ${{ steps.filter.outputs.node == 'true' || steps.filter.outputs.ci == 'true' || github.ref_type == 'tag' }}
+      docker: ${{ steps.filter.outputs.docker == 'true' || steps.filter.outputs.ci == 'true' || github.ref_type == 'tag' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: filter
+        if: github.ref_type != 'tag'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            rust: [src/**, tests/**, Cargo.toml, Cargo.lock]
+            node: [web/**]
+            docker: [ops/docker/**]
+            ci: [.github/**]
+
   security:
+    needs: changes
     uses: ./.github/workflows/security.yml
+    with:
+      rust: ${{ needs.changes.outputs.rust == 'true' }}
+      node: ${{ needs.changes.outputs.node == 'true' }}
 
   lint:
-    needs: security
+    needs: [changes, security]
     uses: ./.github/workflows/lint.yml
+    with:
+      rust: ${{ needs.changes.outputs.rust == 'true' }}
+      node: ${{ needs.changes.outputs.node == 'true' }}
 
   build:
-    needs: lint
+    needs: [changes, lint]
     uses: ./.github/workflows/build.yml
+    with:
+      rust: ${{ needs.changes.outputs.rust == 'true' }}
+      node: ${{ needs.changes.outputs.node == 'true' }}
+      docker: ${{ needs.changes.outputs.docker == 'true' }}
 
   test:
-    needs: build
+    needs: [changes, build]
     uses: ./.github/workflows/test.yml
+    with:
+      rust: ${{ needs.changes.outputs.rust == 'true' }}
+      node: ${{ needs.changes.outputs.node == 'true' }}
 
   # Release tags only, after every stage passed.
   image:

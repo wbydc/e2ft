@@ -11,6 +11,8 @@ use axum::body::Bytes;
 use rust_embed::RustEmbed;
 use sha2::{Digest, Sha256};
 
+use crate::settings::Settings;
+
 #[derive(RustEmbed)]
 #[folder = "web/dist/"]
 struct Embedded;
@@ -41,7 +43,7 @@ impl Assets {
     /// `dir` is `ASSETS_DIR`: `public/` files are served over the embedded ones at the same path, and
     /// `slots/<name>.html` fills `<!-- slot:<name> -->` in `index.html`. Any problem with it is an error, so a broken
     /// mount never serves a half-branded page.
-    pub(crate) fn load(dir: Option<&Path>) -> Result<Assets, String> {
+    pub(crate) fn load(dir: Option<&Path>, settings: &Settings) -> Result<Assets, String> {
         let mut files: HashMap<String, Asset> = Embedded::iter()
             .map(|path| {
                 let file = Embedded::get(&path).expect("listed by iter");
@@ -87,7 +89,7 @@ impl Assets {
 
         let app = stamp_lazy_imports(text(&files, "app.js")?, &files)?;
         replace(&mut files, "app.js", app);
-        let index = render_index(text(&files, "index.html")?, &slots, &files)?;
+        let index = render_index(text(&files, "index.html")?, &slots, &files, settings)?;
         replace(&mut files, "index.html", index);
 
         Ok(Assets { files })
@@ -174,17 +176,24 @@ fn render_index(
     html: &str,
     slots: &HashMap<String, String>,
     files: &HashMap<String, Asset>,
+    settings: &Settings,
 ) -> Result<String, String> {
     let html = fill_slots(html, slots)?;
     let html = stamp_urls(&html, files);
-    for marker in ["__VERSION__", "__CHANGELOG__"] {
+    for marker in ["__VERSION__", "__CHANGELOG__", "__SETTINGS__"] {
         if html.matches(marker).count() != 1 {
             return Err(format!("expected {marker} once in index.html"));
         }
     }
     let changelog = concat!(env!("CARGO_PKG_REPOSITORY"), "/blob/v", env!("CARGO_PKG_VERSION"), "/CHANGELOG.md");
 
-    Ok(html.replace("__CHANGELOG__", changelog).replace("__VERSION__", env!("CARGO_PKG_VERSION")))
+    // Numbers and lists of numbers only, so the JSON cannot close its script element.
+    let settings = serde_json::to_string(settings).expect("settings serialize");
+
+    Ok(html
+        .replace("__CHANGELOG__", changelog)
+        .replace("__VERSION__", env!("CARGO_PKG_VERSION"))
+        .replace("__SETTINGS__", &settings))
 }
 
 /// Replaces each `<!-- slot:NAME -->default<!-- /slot:NAME -->` with the slot's markup, or the trimmed default when
@@ -294,7 +303,7 @@ pub(crate) mod tests {
 
     #[test]
     fn without_a_folder_the_defaults_stay_and_the_markers_go() {
-        let assets = Assets::load(None).unwrap();
+        let assets = Assets::load(None, &Settings::default()).unwrap();
         let html = page(&assets);
 
         assert!(!html.contains("<!-- slot:") && !html.contains("<!-- /slot:"));
@@ -307,9 +316,24 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn the_page_carries_the_servers_settings() {
+        let settings = Settings::parse(|name| (name == "CHUNK_SIZE").then(|| "131072".to_owned())).unwrap();
+        let assets = Assets::load(None, &settings).unwrap();
+        let html = page(&assets);
+
+        let open = "<script type=\"application/json\" id=\"config\">";
+        let start = html.find(open).expect("the config block") + open.len();
+        let end = start + html[start..].find("</script>").unwrap();
+        let json: serde_json::Value = serde_json::from_str(&html[start..end]).unwrap();
+        assert_eq!(json, serde_json::to_value(&settings).unwrap());
+        assert_eq!(json["CHUNK_SIZE"], 131_072);
+        assert!(!html.contains("__SETTINGS__"));
+    }
+
+    #[test]
     fn the_folder_overrides_files_and_stamps_follow_the_new_bytes() {
-        let neutral = Assets::load(None).unwrap();
-        let branded = Assets::load(Some(&sample())).unwrap();
+        let neutral = Assets::load(None, &Settings::default()).unwrap();
+        let branded = Assets::load(Some(&sample()), &Settings::default()).unwrap();
         let favicon = branded.get("ui/favicon.svg").unwrap();
 
         assert_eq!(
@@ -325,7 +349,7 @@ pub(crate) mod tests {
 
     #[test]
     fn stamps_cover_index_and_the_lazy_imports() {
-        let assets = Assets::load(None).unwrap();
+        let assets = Assets::load(None, &Settings::default()).unwrap();
         let app = std::str::from_utf8(&assets.get("app.js").unwrap().bytes).unwrap();
 
         for name in ["jsqr.js", "ristretto.js"] {
@@ -373,7 +397,7 @@ pub(crate) mod tests {
     #[test]
     fn bad_folders_stop_startup() {
         assert!(
-            Assets::load(Some(Path::new("/nonexistent-e2ft-assets")))
+            Assets::load(Some(Path::new("/nonexistent-e2ft-assets")), &Settings::default())
                 .err()
                 .unwrap()
                 .contains("ASSETS_DIR")
@@ -382,7 +406,7 @@ pub(crate) mod tests {
         let dir = scratch("unknown");
         std::fs::write(dir.join("slots/unknown.html"), "x").unwrap();
         assert_eq!(
-            Assets::load(Some(&dir)).err().unwrap(),
+            Assets::load(Some(&dir), &Settings::default()).err().unwrap(),
             "slots not in index.html: unknown"
         );
         std::fs::remove_dir_all(dir).unwrap();
@@ -405,7 +429,7 @@ pub(crate) mod tests {
         std::fs::write(dir.join("public/.hidden"), "x").unwrap();
         std::os::unix::fs::symlink(dir.join("..2026_11_09"), dir.join("..data")).unwrap();
         std::os::unix::fs::symlink(dir.join("..data/public/ui"), dir.join("public/ui")).unwrap();
-        let assets = Assets::load(Some(&dir)).unwrap();
+        let assets = Assets::load(Some(&dir), &Settings::default()).unwrap();
 
         assert_eq!(
             assets.get("ui/favicon.svg").unwrap().bytes.as_ref(),

@@ -3,8 +3,7 @@ import { defineConfig } from "@playwright/test";
 // A room waits ROOM_WAIT seconds for its joiner; short here so the expiry test is quick.
 export const ROOM_WAIT = 10;
 
-// The build's keep-alive choices with a short first one, so the test of a keep-alive running out is quick. The
-// integration config builds with the same list, so switching between the two suites does not rebuild.
+// The server's keep-alive choices with a short first one, so the test of a keep-alive running out is quick.
 export const SHORT_KEEP_ALIVE = 10;
 export const KEEP_ALIVES = `0,${SHORT_KEEP_ALIVE},60,300,900,1800`;
 
@@ -24,8 +23,8 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: { baseURL: `http://127.0.0.1:${PORT}` },
   webServer: {
-    command: "cargo run --release",
-    cwd: "..",
+    // Builds the frontend, then the server that embeds it.
+    command: "npm run serve -- --release",
     url: `http://127.0.0.1:${PORT}/`,
     env: {
       ADDR: `127.0.0.1:${PORT}`,

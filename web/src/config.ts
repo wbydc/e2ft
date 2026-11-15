@@ -1,6 +1,6 @@
-// Build-time settings: today's values are the defaults, and `scripts/build.mjs` swaps in env overrides,
-// checked by `scripts/config.mjs`, as `BUILD_CONFIG`. Unit tests run without the build and get the defaults. The
-// server's copies of ACCESS_LEN, KEEP_ALIVES and KEEP_ALIVE are in build.rs. What each one means is written where
+// The tuning settings: the server reads them from its environment at startup, checks them, and writes them into
+// the page as the `#config` JSON block, which this module reads once at import. The defaults below match the
+// server's (src/settings.rs) and serve unit tests, which run without a page. What each one means is written where
 // it is used: transfer/wire.ts, transfer/constants.ts, crypto/invite.ts, net/settings.ts.
 
 export const DEFAULTS = {
@@ -23,6 +23,6 @@ export const DEFAULTS = {
 
 export type Config = typeof DEFAULTS;
 
-declare const BUILD_CONFIG: Config | undefined;
+const block = typeof document === "undefined" ? null : document.getElementById("config");
 
-export const CONFIG: Config = typeof BUILD_CONFIG === "undefined" ? DEFAULTS : BUILD_CONFIG;
+export const CONFIG: Config = block?.textContent ? (JSON.parse(block.textContent) as Config) : DEFAULTS;

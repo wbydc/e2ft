@@ -37,6 +37,10 @@ assets:
   configMap: ""
   items: []
 
+# More env for the app container (name and value; values are quoted), such as the tuning settings in the README (CHUNK_SIZE, KEEP_ALIVES, ...):
+#   - { name: CHUNK_SIZE, value: "131072" }
+extraEnv: []
+
 metrics:
   enabled: false
   port: 9090

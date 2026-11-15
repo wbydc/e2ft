@@ -231,7 +231,7 @@ async fn member(socket: WebSocket, app: Arc<App>, address: IpAddr, network: Opti
                     }
                 }
                 (Request::Answer { to, room }, Some(network)) if entered => {
-                    if room.as_deref().is_some_and(|room| !valid_room(room)) {
+                    if room.as_deref().is_some_and(|room| !valid_room(room, app.settings.access_len)) {
                         break;
                     }
                     let frame = serde_json::json!({ "t": "answered", "from": wire_id(id), "room": room });

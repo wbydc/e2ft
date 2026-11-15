@@ -3,6 +3,15 @@ name: security
 
 on:
   workflow_call:
+    inputs:
+      rust:
+        description: Rust code changed (src/, tests/, Cargo.*).
+        type: boolean
+        required: true
+      node:
+        description: Frontend code changed (web/).
+        type: boolean
+        required: true
 
 permissions:
   contents: read
@@ -32,6 +41,7 @@ jobs:
 
   # The full image: cargo-audit builds against its pkg-config and OpenSSL.
   cargo-audit:
+    if: inputs.rust
     runs-on: ubuntu-24.04
     container: rust:1.98.1-bookworm
     timeout-minutes: 15
@@ -43,6 +53,7 @@ jobs:
 
   # Dev dependencies too: they run in CI and on contributors' machines.
   npm-audit:
+    if: inputs.node
     runs-on: ubuntu-24.04
     container: node:24.22.2-bookworm-slim
     timeout-minutes: 10

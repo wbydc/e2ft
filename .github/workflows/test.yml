@@ -3,12 +3,22 @@ name: test
 
 on:
   workflow_call:
+    inputs:
+      rust:
+        description: Rust code changed (src/, tests/, Cargo.*).
+        type: boolean
+        required: true
+      node:
+        description: Frontend code changed (web/).
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   web-unit:
+    if: inputs.node
     runs-on: ubuntu-24.04
     container: node:24.22.2-bookworm-slim
     timeout-minutes: 10
@@ -22,14 +32,20 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  # The asset tests read the built frontend, from the build stage.
   rust-unit:
+    if: inputs.rust
     runs-on: ubuntu-24.04
+    container: rust:1.98.1-bookworm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/node
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-dist
+          path: web/dist
       - uses: ./.github/actions/rust
         with:
           cache: debug
@@ -37,6 +53,7 @@ jobs:
 
   # The e2e suite split over three runners, each with its own server.
   e2e:
+    if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -64,6 +81,7 @@ jobs:
 
   # The own-TURN settings specs against the static-user coturns.
   turn-settings:
+    if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -90,13 +108,17 @@ jobs:
 
   # The health check's TURN tests against the shared-secret coturn.
   turn-health:
+    if: inputs.rust
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/node
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-dist
+          path: web/dist
       - uses: ./.github/actions/rust
         with:
           cache: debug
@@ -105,6 +127,7 @@ jobs:
 
   # The relay through a real coturn with the credentials the server signs.
   turn-relay:
+    if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
