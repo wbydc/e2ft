@@ -18,6 +18,10 @@ services:
       TURN_URLS: turn:${TURN_HOST}:3478?transport=udp,turn:${TURN_HOST}:3478?transport=tcp
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       # The tuning settings in the README go here too, such as CHUNK_SIZE: "131072" or KEEP_ALIVES: 0,120,600.
+    # The health check reaches coturn by TURN_HOST from inside this container, where the host's public address may
+    # not lead back to the host (rootless podman, routers without hairpin NAT); browsers still get the public name.
+    extra_hosts:
+      - ${TURN_HOST}:host-gateway
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
@@ -53,8 +57,9 @@ services:
       retries: 3
     volumes:
       - ./turnserver.conf:/etc/coturn/base.conf:ro
+    # Sticky and open to all, since podman's API rejects uid=; the config inside is 0600 (umask 077 above).
     tmpfs:
-      - /run/coturn:size=8m,uid=65534,gid=65534,mode=0700
+      - /run/coturn:size=8m,mode=1777
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
