@@ -1,4 +1,5 @@
-# Stage 4: one job per suite; the TURN ones each run against their own loopback coturns. Called by ci.yml.
+# Stage 4: one job per suite, apart from the coturn suites, which share one job and its coturns. The browser suites
+# run the server binary build / docker made. Called by ci.yml.
 name: test
 
 on:
@@ -51,10 +52,15 @@ jobs:
           cache: debug
       - run: cargo test --locked
 
-  # The e2e suite split over three runners, each with its own server.
+  # The e2e suite split over three runners by test time (scripts/shard.mjs), browsers from Playwright's image. The
+  # coturn specs run in the turn job instead.
   e2e:
     if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      # The runner's user, which owns the workspace; Chromium needs the host's shared memory.
+      options: --user 1001 --ipc=host
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -65,13 +71,15 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/node
-      - uses: ./.github/actions/rust
+      - uses: ./.github/actions/server
+      - run: node scripts/shard.mjs ${{ matrix.shard }}/3 --grep-invert @turn
+        working-directory: web
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          cache: release
-      - run: npx playwright install --with-deps chromium firefox
-        working-directory: web
-      - run: npx playwright test --shard=${{ matrix.shard }}/3
-        working-directory: web
+          name: e2e-times-${{ matrix.shard }}
+          path: web/e2e-times.json
+          retention-days: 7
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -79,8 +87,10 @@ jobs:
           path: web/test-results/
           retention-days: 7
 
-  # The own-TURN settings specs against the static-user coturns.
-  turn-settings:
+  # Every suite that needs a coturn, against one set of loopback coturns: the health check's TURN tests (shared
+  # secret), the own-TURN settings specs (static users), the relay with the credentials the server signs. Each suite
+  # runs once the coturns and browsers are up, whatever the one before it did.
+  turn:
     if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -89,63 +99,36 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/node
-      - uses: ./.github/actions/rust
-        with:
-          cache: release
-      - uses: ./.github/actions/coturn
-      - run: npx playwright install --with-deps chromium firefox
-        working-directory: web
-      - run: npx playwright test tests/e2e/settings.spec.ts
-        working-directory: web
-        env:
-          E2E_TURN: "1"
-      - if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: turn-settings-results
-          path: web/test-results/
-          retention-days: 7
-
-  # The health check's TURN tests against the shared-secret coturn.
-  turn-health:
-    if: inputs.rust
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: ./.github/actions/server
+      - if: inputs.rust
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web-dist
           path: web/dist
-      - uses: ./.github/actions/rust
+      - if: inputs.rust
+        uses: ./.github/actions/rust
         with:
           cache: debug
       - uses: ./.github/actions/coturn
-      - run: cargo test --locked -- --ignored
-
-  # The relay through a real coturn with the credentials the server signs.
-  turn-relay:
-    if: inputs.node || inputs.rust
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/node
-      - uses: ./.github/actions/rust
-        with:
-          cache: release
-      - uses: ./.github/actions/coturn
-      - run: npx playwright install --with-deps chromium firefox
+      - id: browsers
+        run: npx playwright install --with-deps chromium firefox
         working-directory: web
-      - run: npm run integration
+      - name: health check TURN tests
+        if: ${{ inputs.rust && !cancelled() && steps.browsers.outcome == 'success' }}
+        run: cargo test --locked -- --ignored
+      - name: own-TURN settings specs
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npx playwright test tests/e2e/settings.spec.ts --grep @turn
+        working-directory: web
+        env:
+          E2E_TURN: "1"
+      - name: relay through coturn
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run integration
         working-directory: web
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: turn-relay-results
+          name: turn-results
           path: web/test-results/
           retention-days: 7

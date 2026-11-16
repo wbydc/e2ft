@@ -11,6 +11,9 @@ an older peer stop working). A patch has only fixes.
 
 - The server's source is grouped by feature: `src/signal/` (the relay, rooms, sockets, ICE), `src/web/` (assets
   and HTTP), `src/discover/` and `src/health/`, each beside a parent file of the same name. No behavior change.
+- CI tests the server binary from the image build instead of compiling one per job, runs the end-to-end shards in
+  Playwright's image, splits them by test time (`web/scripts/shard.mjs`), and runs every suite that needs a coturn in
+  one job. Tests that need a coturn carry the `@turn` tag; set `E2E_SERVER` to run the e2e suite on a prebuilt server.
 
 ## [0.15.0] - 2026-11-15
 

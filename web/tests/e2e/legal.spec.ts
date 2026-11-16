@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { spawn, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { SERVER } from "../../playwright.config.ts";
 import { launch, registerHooks } from "./fixtures.ts";
 
 registerHooks();
@@ -11,8 +12,8 @@ const BRANDED = `http://127.0.0.1:${Number(process.env.E2E_PORT ?? 18080) + 1}`;
 let branded: ChildProcess;
 
 test.beforeAll(async () => {
-  // playwright.config.ts's webServer has built this binary.
-  branded = spawn(fileURLToPath(new URL("../../../target/release/e2ft", import.meta.url)), {
+  // The binary playwright.config.ts's webServer runs, built by then.
+  branded = spawn(SERVER, {
     env: {
       ...process.env,
       ADDR: new URL(BRANDED).host,

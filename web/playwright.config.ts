@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 // A room waits ROOM_WAIT seconds for its joiner; short here so the expiry test is quick.
 export const ROOM_WAIT = 10;
@@ -14,17 +15,21 @@ const PORT = Number(process.env.E2E_PORT ?? 18080);
 // cap is lifted for the suite.
 const ROOMS_PER_CLIENT = 10_000;
 
+// E2E_SERVER names a server binary built elsewhere (CI builds one for every job); unset, the suite builds its own.
+export const SERVER = process.env.E2E_SERVER ?? fileURLToPath(new URL("../target/release/e2ft", import.meta.url));
+export const SERVER_COMMAND = process.env.E2E_SERVER ? SERVER : "npm run serve -- --release";
+
 export default defineConfig({
   testDir: "tests/e2e",
   // CI splits the suite into shards on separate runners; one worker each, as every browser here shares one address.
   fullyParallel: true,
   workers: 1,
   timeout: 120_000,
-  reporter: process.env.CI ? [["github"], ["list"]] : "list",
+  // CI keeps each run's test times, which scripts/shard.mjs record turns into the shard balance.
+  reporter: process.env.CI ? [["github"], ["list"], ["json", { outputFile: "e2e-times.json" }]] : "list",
   use: { baseURL: `http://127.0.0.1:${PORT}` },
   webServer: {
-    // Builds the frontend, then the server that embeds it.
-    command: "npm run serve -- --release",
+    command: SERVER_COMMAND,
     url: `http://127.0.0.1:${PORT}/`,
     env: {
       ADDR: `127.0.0.1:${PORT}`,

@@ -1,0 +1,17 @@
+# The server binary build / docker copied out of the image, for Playwright to start (E2E_SERVER) instead of building
+# one.
+name: server
+description: The prebuilt server binary, named by E2E_SERVER.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: server
+        path: server
+    # Artifacts drop the file mode.
+    - shell: bash
+      run: |
+        chmod +x server/e2ft
+        echo "E2E_SERVER=$GITHUB_WORKSPACE/server/e2ft" >> "$GITHUB_ENV"

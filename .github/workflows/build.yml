@@ -57,7 +57,8 @@ jobs:
           cache: debug
       - run: mkdir -p web/dist && cargo build --locked --all-targets
 
-  # Not pushed; its cache serves the release image.
+  # Not pushed; its cache serves the release image. Its server binary, frontend embedded, is the one the test stage
+  # runs, so every test job tests what the image ships without compiling its own.
   docker:
     if: inputs.node || inputs.rust || inputs.docker
     runs-on: ubuntu-24.04
@@ -72,5 +73,13 @@ jobs:
           context: .
           file: ops/docker/Dockerfile
           push: false
+          load: true
+          tags: e2ft:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - run: mkdir server && docker create --name e2ft e2ft:ci && docker cp e2ft:/e2ft server/e2ft
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: server
+          path: server/e2ft
+          retention-days: 1

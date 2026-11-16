@@ -22,6 +22,9 @@ import {
 
 registerHooks();
 
+/** Needs the local coturns: CI runs these, and only these, in the job that starts them (`--grep @turn`). */
+const TURN = { tag: "@turn" };
+
 /** Fills the open settings dialog. */
 async function fillSettings(peer: Peer, keep: string, turn: typeof OWN_TURN | null) {
   const dialog = peer.page.locator("#settings");
@@ -122,7 +125,7 @@ test("a custom room uses its own keep-alive and relay and leaves the saved defau
   );
 });
 
-test("?relay=1 with an own TURN server relays through it (needs E2E_TURN=1 and a local coturn)", async () => {
+test("?relay=1 with an own TURN server relays through it (needs E2E_TURN=1 and a local coturn)", TURN, async () => {
   test.skip(!process.env.E2E_TURN, "no local coturn");
   const creator = await launch();
   const joiner = await launch();
@@ -248,20 +251,24 @@ for (const answer of ["Use Theirs", "Use Mine"] as const) {
   });
 }
 
-test("?relay=1 on the joiner relays through the creator's shared TURN server (needs E2E_TURN=1 and a local coturn)", async () => {
-  test.skip(!process.env.E2E_TURN, "no local coturn");
-  const creator = await launch();
-  const joiner = await launch();
-  await recordPeerConnections(joiner);
-  await presetSettings(creator, OWN_TURN, true);
-  const invite = await createRoom(creator);
-  const url = new URL(invite);
-  await joinFromInvite(joiner, `${url.pathname}?relay=1${url.hash}`, "theirs");
-  await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
-  await transfer(creator, joiner, "via-shared-turn.bin", SMALL);
-  expect(await lastIce(joiner)).toEqual(asIce(OWN_TURN));
-  expect((await nominatedLocal(joiner)).type).toBe("relay");
-});
+test(
+  "?relay=1 on the joiner relays through the creator's shared TURN server (needs E2E_TURN=1 and a local coturn)",
+  TURN,
+  async () => {
+    test.skip(!process.env.E2E_TURN, "no local coturn");
+    const creator = await launch();
+    const joiner = await launch();
+    await recordPeerConnections(joiner);
+    await presetSettings(creator, OWN_TURN, true);
+    const invite = await createRoom(creator);
+    const url = new URL(invite);
+    await joinFromInvite(joiner, `${url.pathname}?relay=1${url.hash}`, "theirs");
+    await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
+    await transfer(creator, joiner, "via-shared-turn.bin", SMALL);
+    expect(await lastIce(joiner)).toEqual(asIce(OWN_TURN));
+    expect((await nominatedLocal(joiner)).type).toBe("relay");
+  },
+);
 
 /** The local candidate of the pair the connection nominated. */
 const nominatedLocal = (p: Peer) =>
@@ -278,46 +285,50 @@ const offerApplied = (p: Peer) =>
   p.page.waitForFunction(() => !!(window as unknown as { pcs: RTCPeerConnection[] }).pcs.at(-1)?.remoteDescription);
 
 for (const answer of ["Use Theirs", "Use Ours"] as const) {
-  test(`in a Relay only room a joiner without its own TURN answers ${answer} on the Join screen; ${answer} relays through that server (theirs needs E2E_TURN=1)`, async () => {
-    const theirs = answer === "Use Theirs";
-    test.skip(theirs && !process.env.E2E_TURN, "no local coturn");
-    const creator = await launch();
-    const joiner = await launch();
-    await recordPeerConnections(joiner);
-    await presetSettings(creator, OWN_TURN, true);
-    await creator.page.goto("/");
-    await joiner.page.goto(await customRoom(creator, "Relay only"));
-    const dialog = joiner.page.locator("#settings");
-    await expect(dialog).toBeVisible();
-    // The creator's non-default settings ride in the invite, and the joiner picks the shared TURN here.
-    await expect(dialog.locator("#set-room-list")).toContainText("Relay only.");
-    await expect(dialog.locator("#set-room-list")).toContainText("Shares its TURN server.");
-    await expect(dialog.locator("#set-shared-field")).toContainText("that server will see your IP address");
-    await expect(dialog.locator("#set-shared-mine")).toHaveAttribute("hidden", "");
-    await dialog.locator("#set-shared").selectOption(theirs ? "theirs" : "ours");
-    await dialog.locator("#set-submit").click();
-    await expect(joiner.page.locator("#turn-choice")).toBeHidden();
-    await offerApplied(joiner);
-    expect(await lastPolicy(joiner)).toBe("relay");
-    if (theirs) {
-      await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
-      expect(await lastIce(joiner)).toEqual(asIce(OWN_TURN));
-      await expect(joiner.page.locator("#room-info")).toHaveText(
-        "If a side drops, the room waits 5 min. Relay: their TURN server. Relay only.",
-      );
-      // The e2e coturn on 3479 hands out relay ports 49160-49200.
-      const local = await nominatedLocal(joiner);
-      expect(local.type).toBe("relay");
-      expect(local.port).toBeGreaterThanOrEqual(49160);
-      expect(local.port).toBeLessThanOrEqual(49200);
-    } else {
-      // The e2e server has no TURN of its own, so ours is an empty list here and the room cannot connect.
-      expect(await lastIce(joiner)).toEqual([]);
-      await expect(joiner.page.locator("#room-info")).toHaveText(
-        "If a side drops, the room waits 5 min. Relay: our servers. Relay only.",
-      );
-    }
-  });
+  test(
+    `in a Relay only room a joiner without its own TURN answers ${answer} on the Join screen; ${answer} relays through that server (theirs needs E2E_TURN=1)`,
+    answer === "Use Theirs" ? TURN : {},
+    async () => {
+      const theirs = answer === "Use Theirs";
+      test.skip(theirs && !process.env.E2E_TURN, "no local coturn");
+      const creator = await launch();
+      const joiner = await launch();
+      await recordPeerConnections(joiner);
+      await presetSettings(creator, OWN_TURN, true);
+      await creator.page.goto("/");
+      await joiner.page.goto(await customRoom(creator, "Relay only"));
+      const dialog = joiner.page.locator("#settings");
+      await expect(dialog).toBeVisible();
+      // The creator's non-default settings ride in the invite, and the joiner picks the shared TURN here.
+      await expect(dialog.locator("#set-room-list")).toContainText("Relay only.");
+      await expect(dialog.locator("#set-room-list")).toContainText("Shares its TURN server.");
+      await expect(dialog.locator("#set-shared-field")).toContainText("that server will see your IP address");
+      await expect(dialog.locator("#set-shared-mine")).toHaveAttribute("hidden", "");
+      await dialog.locator("#set-shared").selectOption(theirs ? "theirs" : "ours");
+      await dialog.locator("#set-submit").click();
+      await expect(joiner.page.locator("#turn-choice")).toBeHidden();
+      await offerApplied(joiner);
+      expect(await lastPolicy(joiner)).toBe("relay");
+      if (theirs) {
+        await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
+        expect(await lastIce(joiner)).toEqual(asIce(OWN_TURN));
+        await expect(joiner.page.locator("#room-info")).toHaveText(
+          "If a side drops, the room waits 5 min. Relay: their TURN server. Relay only.",
+        );
+        // The e2e coturn on 3479 hands out relay ports 49160-49200.
+        const local = await nominatedLocal(joiner);
+        expect(local.type).toBe("relay");
+        expect(local.port).toBeGreaterThanOrEqual(49160);
+        expect(local.port).toBeLessThanOrEqual(49200);
+      } else {
+        // The e2e server has no TURN of its own, so ours is an empty list here and the room cannot connect.
+        expect(await lastIce(joiner)).toEqual([]);
+        await expect(joiner.page.locator("#room-info")).toHaveText(
+          "If a side drops, the room waits 5 min. Relay: our servers. Relay only.",
+        );
+      }
+    },
+  );
 }
 
 test("a joiner with Always use TURN in an Auto room preselects Use Ours on the Join screen and the fallback never asks", async () => {
@@ -375,66 +386,74 @@ const localTypes = (p: Peer) =>
   });
 
 for (const toggled of ["chromium", "firefox"] as const) {
-  test(`Always use TURN on a ${toggled} joiner alone: it gathers and sends only relay candidates, the creator in Auto is not told, a file arrives intact (needs E2E_TURN=1 and a local coturn)`, async () => {
-    test.skip(!process.env.E2E_TURN, "no local coturn");
-    const creator = await launch();
-    const joiner = await launch(toggled);
-    await recordPeerConnections(joiner);
-    await recordRemoteCandidates(creator);
-    // The creator needs a candidate the TURN server can reach: an mDNS host one is not (ours gives it srflx and relay in production).
-    await presetSettings(creator, OWN_TURN);
-    await joiner.page.goto("/");
-    await joiner.page.evaluate(
-      (v) => localStorage.setItem("share-settings", v),
-      JSON.stringify({ keepAlive: 300, turn: { ...OWN_TURN, urls: [OWN_TURN.urls] }, alwaysTurn: true }),
-    );
-    const invite = await createRoom(creator);
-    await joinFromInvite(joiner, invite);
-    await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
-    await transfer(creator, joiner, "always-turn.bin", SMALL);
-    await transfer(joiner, creator, "always-turn-back.bin", SMALL);
-    expect(await lastPolicy(joiner)).toBe("relay");
-    const types = await localTypes(joiner);
-    expect(types.length).toBeGreaterThan(0);
-    expect(new Set(types)).toEqual(new Set(["relay"]));
-    const remote = await creator.page.evaluate(() => (window as unknown as { remote: string[] }).remote);
-    expect(remote.length).toBeGreaterThan(0);
-    for (const candidate of remote) expect(candidate).toMatch(/ typ relay/);
-    expect(await creator.page.locator("#room-info").textContent()).not.toContain("Relay only");
-    await creator.page.getByRole("button", { name: "Connection Info" }).click();
-    await expect(creator.page.locator("#conn-detail")).toContainText("other side: relay");
-  });
+  test(
+    `Always use TURN on a ${toggled} joiner alone: it gathers and sends only relay candidates, the creator in Auto is not told, a file arrives intact (needs E2E_TURN=1 and a local coturn)`,
+    TURN,
+    async () => {
+      test.skip(!process.env.E2E_TURN, "no local coturn");
+      const creator = await launch();
+      const joiner = await launch(toggled);
+      await recordPeerConnections(joiner);
+      await recordRemoteCandidates(creator);
+      // The creator needs a candidate the TURN server can reach: an mDNS host one is not (ours gives it srflx and relay in production).
+      await presetSettings(creator, OWN_TURN);
+      await joiner.page.goto("/");
+      await joiner.page.evaluate(
+        (v) => localStorage.setItem("share-settings", v),
+        JSON.stringify({ keepAlive: 300, turn: { ...OWN_TURN, urls: [OWN_TURN.urls] }, alwaysTurn: true }),
+      );
+      const invite = await createRoom(creator);
+      await joinFromInvite(joiner, invite);
+      await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
+      await transfer(creator, joiner, "always-turn.bin", SMALL);
+      await transfer(joiner, creator, "always-turn-back.bin", SMALL);
+      expect(await lastPolicy(joiner)).toBe("relay");
+      const types = await localTypes(joiner);
+      expect(types.length).toBeGreaterThan(0);
+      expect(new Set(types)).toEqual(new Set(["relay"]));
+      const remote = await creator.page.evaluate(() => (window as unknown as { remote: string[] }).remote);
+      expect(remote.length).toBeGreaterThan(0);
+      for (const candidate of remote) expect(candidate).toMatch(/ typ relay/);
+      expect(await creator.page.locator("#room-info").textContent()).not.toContain("Relay only");
+      await creator.page.getByRole("button", { name: "Connection Info" }).click();
+      await expect(creator.page.locator("#conn-detail")).toContainText("other side: relay");
+    },
+  );
 }
 
-test("Always use TURN is saved, survives a reload, is hidden in the custom-room dialog, and still relays the creator in an Auto custom room (relay part needs E2E_TURN=1)", async () => {
-  const creator = await launch();
-  await recordPeerConnections(creator);
-  await presetSettings(creator, process.env.E2E_TURN ? OWN_TURN : null);
-  await creator.page.goto("/");
-  await creator.page.getByRole("button", { name: "Settings" }).click();
-  await expect(creator.page.locator("#set-always-turn")).not.toBeChecked();
-  await expect(creator.page.locator("#set-always-turn-label")).toHaveText("Always use TURN");
-  await expect(creator.page.locator("#set-always-turn-hint")).toContainText("Hides your IP from the other person");
-  await creator.page.getByLabel("Always use TURN").check();
-  await creator.page.locator("#set-submit").click();
-  await creator.page.reload();
-  await creator.page.getByRole("button", { name: "Settings" }).click();
-  await expect(creator.page.locator("#set-always-turn")).toBeChecked();
-  await creator.page.getByRole("button", { name: "Cancel" }).click();
-  await creator.page.getByRole("button", { name: "Create a Custom Room" }).click();
-  await expect(creator.page.locator("#set-always-turn-field")).toBeHidden();
-  await creator.page.getByRole("button", { name: "Cancel" }).click();
-  if (!process.env.E2E_TURN) return;
-  const joiner = await launch("firefox");
-  await recordRemoteCandidates(joiner);
-  await joinFromInvite(joiner, await customRoom(creator, "Auto"));
-  await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
-  await transfer(creator, joiner, "always-turn-custom.bin", SMALL);
-  expect(await lastPolicy(creator)).toBe("relay");
-  expect(new Set(await localTypes(creator))).toEqual(new Set(["relay"]));
-  const remote = await joiner.page.evaluate(() => (window as unknown as { remote: string[] }).remote);
-  for (const candidate of remote) expect(candidate).toMatch(/ typ relay/);
-});
+test(
+  "Always use TURN is saved, survives a reload, is hidden in the custom-room dialog, and still relays the creator in an Auto custom room (relay part needs E2E_TURN=1)",
+  TURN,
+  async () => {
+    const creator = await launch();
+    await recordPeerConnections(creator);
+    await presetSettings(creator, process.env.E2E_TURN ? OWN_TURN : null);
+    await creator.page.goto("/");
+    await creator.page.getByRole("button", { name: "Settings" }).click();
+    await expect(creator.page.locator("#set-always-turn")).not.toBeChecked();
+    await expect(creator.page.locator("#set-always-turn-label")).toHaveText("Always use TURN");
+    await expect(creator.page.locator("#set-always-turn-hint")).toContainText("Hides your IP from the other person");
+    await creator.page.getByLabel("Always use TURN").check();
+    await creator.page.locator("#set-submit").click();
+    await creator.page.reload();
+    await creator.page.getByRole("button", { name: "Settings" }).click();
+    await expect(creator.page.locator("#set-always-turn")).toBeChecked();
+    await creator.page.getByRole("button", { name: "Cancel" }).click();
+    await creator.page.getByRole("button", { name: "Create a Custom Room" }).click();
+    await expect(creator.page.locator("#set-always-turn-field")).toBeHidden();
+    await creator.page.getByRole("button", { name: "Cancel" }).click();
+    if (!process.env.E2E_TURN) return;
+    const joiner = await launch("firefox");
+    await recordRemoteCandidates(joiner);
+    await joinFromInvite(joiner, await customRoom(creator, "Auto"));
+    await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
+    await transfer(creator, joiner, "always-turn-custom.bin", SMALL);
+    expect(await lastPolicy(creator)).toBe("relay");
+    expect(new Set(await localTypes(creator))).toEqual(new Set(["relay"]));
+    const remote = await joiner.page.evaluate(() => (window as unknown as { remote: string[] }).remote);
+    for (const candidate of remote) expect(candidate).toMatch(/ typ relay/);
+  },
+);
 
 for (const kind of ["chromium", "firefox"] as const) {
   test(`Always use TURN with a dead own TURN: a ${kind} creator ends at once with the relay-down text, not the ICE timeout`, async () => {
@@ -497,22 +516,27 @@ test("the connection choice is only in the custom-room dialog and never saved; A
 });
 
 for (const joinerKind of ["chromium", "firefox"] as const) {
-  test(`a Relay over TCP room relays both browsers over TCP once a ${joinerKind} joiner picks the creator's TURN (needs E2E_TURN=1 and a local coturn)`, async () => {
-    test.skip(!process.env.E2E_TURN, "no local coturn");
-    const creator = await launch();
-    const joiner = await launch(joinerKind);
-    await presetSettings(creator, OWN_TURN, true);
-    await creator.page.goto("/");
-    const invite = await customRoom(creator, "Relay only, over TCP");
-    expect(invite).not.toContain("relay");
-    await joinFromInvite(joiner, invite, "theirs");
-    if (joinerKind === "firefox") await joiner.page.waitForFunction(() => navigator.serviceWorker?.controller !== null);
-    await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
-    await transfer(creator, joiner, "via-tcp-relay.bin", SMALL);
-    for (const peer of [creator, joiner]) {
-      await peer.page.getByRole("button", { name: "Connection Info" }).click();
-      await expect(peer.page.locator("#conn-path")).toHaveText(/^Through the TURN relay/);
-      await expect(peer.page.locator("#conn-detail")).toContainText("This side: relay, other side: relay, TCP");
-    }
-  });
+  test(
+    `a Relay over TCP room relays both browsers over TCP once a ${joinerKind} joiner picks the creator's TURN (needs E2E_TURN=1 and a local coturn)`,
+    TURN,
+    async () => {
+      test.skip(!process.env.E2E_TURN, "no local coturn");
+      const creator = await launch();
+      const joiner = await launch(joinerKind);
+      await presetSettings(creator, OWN_TURN, true);
+      await creator.page.goto("/");
+      const invite = await customRoom(creator, "Relay only, over TCP");
+      expect(invite).not.toContain("relay");
+      await joinFromInvite(joiner, invite, "theirs");
+      if (joinerKind === "firefox")
+        await joiner.page.waitForFunction(() => navigator.serviceWorker?.controller !== null);
+      await expect(status(joiner)).toContainText("Connected", { timeout: 20_000 });
+      await transfer(creator, joiner, "via-tcp-relay.bin", SMALL);
+      for (const peer of [creator, joiner]) {
+        await peer.page.getByRole("button", { name: "Connection Info" }).click();
+        await expect(peer.page.locator("#conn-path")).toHaveText(/^Through the TURN relay/);
+        await expect(peer.page.locator("#conn-detail")).toContainText("This side: relay, other side: relay, TCP");
+      }
+    },
+  );
 }
