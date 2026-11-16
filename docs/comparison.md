@@ -1,73 +1,122 @@
 # How e2ft compares
 
-This page compares e2ft with five other browser file transfer tools: PairDrop, FilePizza, WebWormhole,
-transfer.zip, and Wormhole.app, from each project's own documentation as of 2026-11-09 (GitHub stars from the
-GitHub API that day), and e2ft as of version 0.10. Cells marked "Not documented" are things the project does not
-state; check it before relying on them.
+This page compares e2ft 0.15 with five other browser file transfer tools: PairDrop, FilePizza, WebWormhole,
+transfer.zip and Wormhole.app. It is based on each project's own documentation as of 2026-11-16, with GitHub stars
+from the GitHub API that day. Each tool's section describes it, then lists where it falls short of e2ft. "Not
+documented" marks something the project does not state, so check it before you rely on it.
 
-| Project | Accounts | Room or link | Secret path | Server can read or MITM? | Files stored server-side | Save-location picker | Self-hosting | License | Stars |
+| Project | Direction | Both online | Secret path | Server can read or MITM? | Files stored server-side | Save-location picker | Self-hosting | License | Stars |
 |---|---|---|---|---|---|---|---|---|---|
-| e2ft | No | Two-way room; either side can send; opt-in discovery of devices on the same network | Secret in the URL fragment, used in CPace; never sent | No; sealed signalling fails if altered | No | Yes on Chromium; streamed download or OPFS elsewhere | Yes | AGPL-3.0 | new |
-| PairDrop | No | Temporary public rooms and device pairing | Room or pairing code goes to the server | Yes; DTLS only, so the signalling server is trusted | No; P2P with TURN fallback | No; browser download | Yes | GPL-3.0 | 11.8k |
-| FilePizza | No | One-way link from uploader to downloader | Channel id in the link goes to the server | The signalling server is trusted for the handshake; an optional password adds a check | No; P2P with optional TURN | No; streamed download | Yes | BSD-3-Clause | 10.3k |
-| WebWormhole | No | One-shot, one-way transfer | One-time code is a CPace password; never sent | No; the PAKE authenticates the exchange | No; P2P | No; browser download | Yes | BSD-3-Clause | 2.1k |
-| transfer.zip | Not documented for Quick Transfers | One-way link; Quick Transfers are P2P while both are online | A random 256-bit AES-GCM key in the link or QR code | Not for file data, which is sealed with that key; the handshake is not keyed | Quick Transfers: no; Stored Transfers: yes, until expiry | Not documented | Yes | AGPL-3.0 | 1.5k |
-| Wormhole.app | Not documented (hosted service) | One-way link; upload first, download later | Files are encrypted in the browser before upload | No for file content | Yes, up to 24 hours | Not documented | No | Proprietary | n/a |
+| e2ft | Two-way room; either side sends | Yes | Secret in the URL fragment, used in CPace; never sent | No; sealed signalling fails if altered | No | Yes on Chromium; streamed download or OPFS elsewhere | Yes: image, Compose file with coturn, Helm chart | AGPL-3.0 | new |
+| PairDrop | Either side, within a network, pair or public room | Yes | Room or pairing code goes to the server | Yes; DTLS only, the server relays the fingerprints | No; TURN relay for paired devices behind NAT | No; auto-download, several files as a ZIP | Yes | GPL-3.0 | 11.8k |
+| FilePizza | One-way, uploader to downloaders | Yes; the uploader keeps the window open | Channel id in the link goes to the server | Yes; DTLS only, optional password | No | No; streamed download, several files as a ZIP | Yes | BSD-3-Clause | 10.3k |
+| WebWormhole | One-way, one transfer | Yes | One-time code is a CPace password; never sent | No; the PAKE authenticates the exchange | No | No | Yes | BSD-3-Clause | 2.1k |
+| transfer.zip | One-way link | Quick Transfers: yes; Stored Transfers: no | Full 256-bit AES-GCM key in the link or QR code | Reads no file data; the handshake is not keyed; relays all files over 10 MB | Stored Transfers: yes, until expiry | Not documented | Yes; the self-hosted branch can lag production | AGPL-3.0 | 1.5k |
+| Wormhole.app | One-way link | No up to 5 GB; yes above | 128-bit AES-GCM key in the link fragment | No for file content | Yes, up to 5 GB for 24 hours | Not documented | No | Proprietary; only the crypto library is open | n/a |
 
 ## e2ft
 
-e2ft combines a two-way room, a secret that never reaches the server, no server-side storage, and a save-location
-picker where the browser offers one. Both people must be online at the same time, and a room does not survive a
-server restart. The server cannot read the exchange, but it can still block or drop it.
+e2ft gives two people one room in which either side can send, with a secret that never reaches the server, no files
+on the server, and a save-location picker where the browser offers one. CPace turns the secret into the room key,
+so the server can neither read the signalling nor swap in its own keys without the exchange failing. Each chunk is
+sealed with AES-GCM on top of WebRTC's own encryption. Devices behind one public address can also find each other,
+off by default: both screens show a 6-digit code derived from the key exchange, and nothing connects until both
+people confirm it matches. Self-hosting takes one container image, a Docker Compose file that brings its own coturn
+relay, or a Helm chart.
 
-Since version 0.10, e2ft can also find devices on the same network, off by default. Devices behind one public
-address that turned it on list each other by name, and a tap starts a room without an invite. The server introduces
-the devices, so it is not trusted to pair them honestly: both screens show a 6-digit code derived from the key
-exchange, and nothing connects until both people confirm it matches. The server sees the device names, and devices
-on different networks cannot find each other; there is no pairing that remembers a device.
+## [PairDrop](https://github.com/schlagmichdoch/PairDrop)
 
-## PairDrop
+PairDrop is the closest tool in scope: AirDrop-style sharing in the browser, a fork of Snapdrop. Devices on the same
+network see each other without an invite. Devices can also be paired with a 6-digit code or QR code, and paired
+devices find each other on any network, even after PairDrop is reopened. Temporary public rooms, joined with a
+5-letter code, connect people over the internet. Either side can send; a transfer starts once the receiver accepts
+it. It can also send text, and from the share menu on Android and iOS, the context menu on Windows and Ubuntu, or a
+command line.
 
-PairDrop is the closest tool in scope. It supports temporary public rooms and pairing between devices, so people
-on the same network can find each other without an invite. It uses WebRTC DTLS, but the room or pairing code goes
-through its server and the server relays the handshake, so the server is a trust anchor: a malicious server could
-replace the DTLS fingerprints. It has no save-location picker. Its pairing of devices across networks and its public
-rooms are real advantages; e2ft's discovery covers only devices behind one public address, but it checks the
-pairing with a compared code instead of trusting the server.
+Where it falls short:
 
-## FilePizza
+- The server is a trust anchor. Room and pairing codes go to it, and it relays the WebRTC handshake, including the
+  DTLS fingerprints, so a malicious or compromised server can swap them and read every file in transit.
+- Files get no encryption of their own beyond DTLS. Between paired devices behind NAT they all flow through the
+  PairDrop TURN server, protected only by that server-relayed handshake. A self-hosted instance can also turn on a
+  WebSocket fallback that sends files through the server itself.
+- Everyone in a public room sees everyone else, and the room is gated only by its 5-letter code.
+- There is no save-location picker: files download automatically, and several arrive as one ZIP.
 
-FilePizza turns an upload into a link. The sender keeps the page open while the receiver downloads, and the
-receiver streams the file through a Service Worker with progress, without holding it in memory. The flow is
-one-way by design, the signalling server is trusted for the handshake, and there is no save-location picker. Its
-short upload-then-share flow and its streaming download are its advantages.
+## [FilePizza](https://github.com/kern/filepizza)
 
-## WebWormhole
+FilePizza turns an upload into a link. The uploader picks files, shares a short or long URL, and keeps the page open
+while receivers download straight from their browser over WebRTC, with nothing stored on a server. Any number of
+people can download from one link, the uploader sees their progress and can stop a transfer, and receivers stream
+the file through a Service Worker without holding it in memory. An optional password adds a check, and several files
+arrive as one ZIP.
 
-WebWormhole uses the same core idea as e2ft: a one-time code is a CPace password, and the key exchange
-authenticates the relayed SDP, so the signalling server cannot read or alter the exchange. It is built for one
-transfer, not for a room, and it has no save-location picker. Its small, single-purpose flow is its advantage.
+Where it falls short:
 
-## transfer.zip
+- Transfers go one way. The receiver cannot send anything back without starting a new upload.
+- Closing the uploader's window kills the link for anyone who has not finished.
+- Security rests on WebRTC's DTLS, set up through a signalling server that must be trusted. Without the optional
+  password, the link alone lets anyone download, so a leaked link leaks the files.
+- Signalling runs over PeerJS, and a self-hosted instance uses the public PeerJS server at `0.peerjs.com` unless you
+  configure your own.
+- There is no save-location picker.
 
-transfer.zip has two modes. Quick Transfers stream a file over WebRTC, sealed with AES-GCM under a random 256-bit
-key carried in the link or QR code, and fall back to relaying through the signalling server, which it uses for files
-over 10 MB even when a direct connection works. Stored Transfers upload the file to the server or S3 storage with
-resumable uploads, so the receiver can download later without both people being online. It is self-hostable under
-AGPL-3.0. Its strengths are the stored mode, transfer requests and custom branding; the link carries the full key,
-and transfers go one way.
+## [WebWormhole](https://github.com/saljam/webwormhole)
 
-## Wormhole.app
+WebWormhole uses the same core idea as e2ft: a one-time code is a CPace password, and the key exchange authenticates
+the relayed session descriptions with their DTLS fingerprints, so the signalling server cannot read or alter the
+exchange. It is modelled on Magic Wormhole, sends files or other data from one computer to another, and works from
+the browser, a browser extension that loads no remote code, or a command-line tool.
 
-Wormhole.app is a hosted service. It encrypts files in the browser before upload and stores them for up to 24
-hours, so it works when the receiver is offline. That is its advantage. The tradeoff is that the encrypted files
-sit on a server for that period, and the service cannot be self-hosted. Its documentation does not state its account
-model or save behaviour.
+Where it falls short:
+
+- Its own README warns that it is in early development, uses experimental cryptographic libraries and has had no
+  security or cryptography review.
+- The repository has had no commits since 2025-12-22.
+- It moves one transfer, one way. There is no room to send more files or reply.
+- The hosted signalling and relay servers come with no guarantee of uptime.
+- There is no save-location picker.
+
+## [transfer.zip](https://github.com/robinkarlberg/transfer.zip-web)
+
+transfer.zip is a self-hostable alternative to WeTransfer with two modes. Quick Transfers stream a file over WebRTC,
+sealed with AES-GCM under a random 256-bit key carried in the link or QR code, while both people are online. Stored
+Transfers upload the file to the server or S3 storage with resumable uploads, so the receiver can download later.
+It also offers transfer requests, custom branding and email notices.
+
+Where it falls short:
+
+- The link carries the full encryption key, so anyone who sees the link or its QR code can read the file. The key
+  does not authenticate the handshake.
+- Every Quick Transfer over 10 MB is forced through the signalling server as a relay, even when a direct WebRTC
+  connection works. The server carries all the encrypted bytes and can see their size and timing.
+- Stored Transfers keep the file on the server or in S3 storage until it expires.
+- Transfers go one way.
+- Its README lists known problems: 0-byte files get stuck in Quick Transfers, sending from Firefox on mobile does not
+  work, and sending from some Safari versions is buggy.
+- The self-hosted `main` branch can lag behind the code that runs in production.
+
+## [Wormhole.app](https://wormhole.app)
+
+Wormhole.app is a hosted service for sending files by link. It encrypts files in the browser with AES-GCM before
+they leave, keeps the key in the link's fragment so the server never receives it, and uploads files up to 5 GB to
+its servers for 24 hours, so the receiver can download after the sender has closed the page. Larger files go
+peer-to-peer over WebRTC.
+
+Where it falls short:
+
+- It is a closed service. Only its encryption library is open source, and it cannot be self-hosted, so you have to
+  trust the code it serves with no way to run your own.
+- Files up to 5 GB sit on its servers for 24 hours, encrypted.
+- Above 5 GB the sender must keep the page open until the receiver downloads.
+- The link carries the 128-bit key, so anyone who sees the link can read the files.
+- A link sends files from its creator to its receivers; its documentation describes no way to reply.
 
 ## Summary
 
-Among these tools, none combines a two-way room with an exchange the server cannot read, and none documents checking
-a pair of devices that the server introduced, as e2ft's same-network discovery does with its compared code.
-WebWormhole applies a comparable exchange model to a one-shot transfer, PairDrop pairs devices across networks and
-has public rooms, and Wormhole.app and transfer.zip work when the receiver is offline. e2ft is for two people who
-are online together and want a session that either side can use.
+None of the other five combines a two-way room with an exchange the server cannot read. PairDrop and FilePizza trust
+their server with the handshake, transfer.zip and Wormhole.app put the whole key in the link, and transfer.zip and
+Wormhole.app also store or relay the files on their servers. WebWormhole shares e2ft's exchange model but is
+unreviewed and moves one transfer. None checks a pair of devices the server introduced, as e2ft's discovery does with
+its compared code, and none documents a save-location picker. e2ft is for two people who are online together and
+want a private session either side can use.
