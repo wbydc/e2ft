@@ -34,9 +34,11 @@ const [command, ...rest] = process.argv.slice(2);
 
 if (command === "record") {
   const durations = readDurations();
+  // Half old, half new: the long transfer specs swing by a third between runs, and one run should not move them all.
   for (const path of rest)
     for (const spec of specsOf(JSON.parse(readFileSync(path, "utf8"))))
-      if (spec.seconds > 0) durations[spec.key] = Math.round(spec.seconds * 10) / 10;
+      if (spec.seconds > 0)
+        durations[spec.key] = Math.round(((durations[spec.key] ?? spec.seconds) + spec.seconds) * 5) / 10;
   const sorted = Object.fromEntries(Object.entries(durations).toSorted(([a], [b]) => a.localeCompare(b)));
   writeFileSync(DURATIONS, `${JSON.stringify(sorted, null, 2)}\n`);
   process.exit(0);
