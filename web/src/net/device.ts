@@ -4,7 +4,7 @@ import { load, save } from "../store.ts";
 
 export type DeviceSettings = { visible: boolean; name: string };
 
-/** The server refuses longer labels (src/lobby.rs LABEL_MAX). */
+/** The server refuses longer labels (src/discover/lobby.rs LABEL_MAX). */
 export const NAME_MAX = 32;
 
 const COLORS = [

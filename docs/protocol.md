@@ -2,7 +2,7 @@
 
 This document describes the wire protocol of e2ft precisely enough to write a compatible client. Field names,
 labels, lengths and constants are the ones in the code: `web/src/crypto/*.ts`, `web/src/net/*.ts`,
-`web/src/transfer/wire.ts`, `src/relay.rs` and `src/rooms.rs`. Lengths, keep-alives and flow-control numbers are the
+`web/src/transfer/wire.ts`, `src/signal/relay.rs` and `src/signal/rooms.rs`. Lengths, keep-alives and flow-control numbers are the
 defaults of the tuning settings (README, Tuning settings); a server may change them.
 
 ## Conventions and roles

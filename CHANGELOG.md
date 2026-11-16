@@ -7,6 +7,11 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- The server's source is grouped by feature: `src/signal/` (the relay, rooms, sockets, ICE), `src/web/` (assets
+  and HTTP), `src/discover/` and `src/health/`, each beside a parent file of the same name. No behavior change.
+
 ## [0.15.0] - 2026-11-15
 
 ### Added

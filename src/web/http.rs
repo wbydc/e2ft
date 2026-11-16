@@ -9,7 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::{App, assets::Assets};
+use crate::{App, web::assets::Assets};
 
 pub(crate) async fn security_headers(mut res: Response) -> Response {
     let h = res.headers_mut();
@@ -46,7 +46,7 @@ pub(crate) async fn security_headers(mut res: Response) -> Response {
         "cross-origin-opener-policy",
         HeaderValue::from_static("same-origin"),
     );
-    // Unstamped URLs must revalidate; stamped ones (?v=<hash>, src/assets.rs) set their own long-lived header.
+    // Unstamped URLs must revalidate; stamped ones (?v=<hash>, src/web/assets.rs) set their own long-lived header.
     h.entry(header::CACHE_CONTROL)
         .or_insert(HeaderValue::from_static("no-cache"));
     res
@@ -121,7 +121,7 @@ pub(crate) async fn asset(State(app): State<Arc<App>>, uri: Uri) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assets::tests::sample;
+    use crate::web::assets::tests::sample;
 
     #[test]
     fn only_the_current_content_hash_is_stamped() {

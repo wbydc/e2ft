@@ -2,6 +2,8 @@
 //! visible pages share its network, and can ask one of them to start a room. The client address is used once, here,
 //! to pick the group; only its keyed hash is kept, and nothing of it is logged or counted.
 
+pub(crate) mod lobby;
+
 use std::{
     io::Read,
     net::{IpAddr, SocketAddr},
@@ -23,8 +25,8 @@ use tokio::sync::mpsc;
 
 use crate::App;
 use crate::bucket::Bucket;
-use crate::lobby::{BURST, Device, LobbyId, Network, PER_SECOND};
-use crate::relay::{QUEUE, spawn_writer, valid_room};
+use lobby::{BURST, Device, LobbyId, Network, PER_SECOND};
+use crate::signal::relay::{QUEUE, spawn_writer, valid_room};
 
 /// A hello, an ask or an answer is a few hundred bytes.
 const MAX_FRAME: usize = 4096;

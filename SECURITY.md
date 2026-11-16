@@ -37,7 +37,7 @@ path, is hostile. The exact protocol is in [docs/protocol.md](docs/protocol.md).
 - **The page is locked down.** Every response carries a strict Content-Security-Policy (`default-src 'self'`, no
   inline scripts, no framing), `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, HSTS,
   `Cross-Origin-Opener-Policy: same-origin` and a `Permissions-Policy` that allows only the camera and the screen
-  wake lock (`src/http.rs`).
+  wake lock (`src/web/http.rs`).
 - **The server is hard to abuse.** It holds at most 10 000 rooms, 16 live rooms, 16 open signalling sockets and 32 open discovery sockets
   per client address (an IPv6 address counts by its /64, and one /48 holds at most 256 rooms), and
   each socket may relay only signalling-sized traffic (256 KiB at once, then 16 KiB per second).

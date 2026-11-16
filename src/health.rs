@@ -4,13 +4,15 @@
 //! Exit 0 when everything passes; otherwise one line on stderr naming the failed step and the exit code of its
 //! `Failure`. The secret and the credential are never printed.
 
+mod stun;
+
 use std::{
     io::{BufRead, BufReader, Read, Write},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream, ToSocketAddrs, UdpSocket},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
-use crate::stun::{self, Reply};
+use stun::Reply;
 
 const HTTP_BUDGET: Duration = Duration::from_secs(2);
 /// The whole check; the image's HEALTHCHECK timeout must stay above it.
@@ -53,7 +55,7 @@ fn check() -> Result<(), Failure> {
     let start = Instant::now();
     http(local(crate::config::address("ADDR", crate::config::ADDR)), start + HTTP_BUDGET).map_err(Failure::Server)?;
 
-    let urls = crate::ice::list("TURN_URLS", "");
+    let urls = crate::signal::ice::list("TURN_URLS", "");
     if urls.is_empty() {
         return Ok(());
     }
@@ -242,8 +244,8 @@ fn turn(server: &Turn, secret: &[u8], deadline: Instant) -> Result<(), Failure> 
     };
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock after 1970").as_secs();
-    let username = (now + crate::ice::TURN_TTL_SECS).to_string();
-    let key = stun::long_term_key(&username, realm, &crate::ice::credential(secret, &username));
+    let username = (now + crate::signal::ice::TURN_TTL_SECS).to_string();
+    let key = stun::long_term_key(&username, realm, &crate::signal::ice::credential(secret, &username));
     let login: [(u16, &[u8]); 3] =
         [(stun::USERNAME, username.as_bytes()), (stun::REALM, realm), (stun::NONCE, nonce)];
 

@@ -13,7 +13,7 @@ use axum::{
 };
 
 use crate::App;
-use crate::rooms::{End, Stats};
+use crate::signal::rooms::{End, Stats};
 
 /// The codes `e2ft_errors_total` counts: the room errors, a refused keep-alive, a client over its socket count and
 /// a socket over its byte rate.

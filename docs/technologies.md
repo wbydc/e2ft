@@ -10,12 +10,12 @@ The server is one Rust binary, built with edition 2024, using axum 0.8 and tokio
 
 - `src/main.rs` builds the shared `App` state, the HTTP router and the shutdown signals.
 - `src/config.rs` reads `ADDR`, the metrics settings and `ASSETS_DIR` from the environment.
-- `src/assets.rs` builds the table of served files at startup: the embedded frontend, the optional assets folder,
+- `src/web/assets.rs` builds the table of served files at startup: the embedded frontend, the optional assets folder,
   the stamps, slots and version.
-- `src/http.rs` serves that table, the stamped asset caching and the security headers.
-- `src/relay.rs` is the `/ws` WebSocket relay.
-- `src/rooms.rs` is the room state, with no I/O.
-- `src/ice.rs` builds the STUN and TURN server list.
+- `src/web/http.rs` serves that table, the stamped asset caching and the security headers.
+- `src/signal/relay.rs` is the `/ws` WebSocket relay.
+- `src/signal/rooms.rs` is the room state, with no I/O.
+- `src/signal/ice.rs` builds the STUN and TURN server list.
 - `src/metrics.rs` counts events and renders the metrics text.
 
 axum gives the project a small async HTTP server with a WebSocket upgrade on top of tokio. The server's job is
@@ -37,7 +37,7 @@ logs and has no access to the secret, which travels only in the link fragment.
 
 ## rust-embed
 
-`src/assets.rs` embeds the built frontend with `#[derive(RustEmbed)]` over `web/dist/`, which `npm run build` makes
+`src/web/assets.rs` embeds the built frontend with `#[derive(RustEmbed)]` over `web/dist/`, which `npm run build` makes
 beforehand; cargo never runs npm. `ops/docker/Dockerfile` builds the frontend in its Node stage and the Rust stage
 embeds that directory.
 
@@ -46,8 +46,8 @@ embedded set into an in-memory table, lays the optional `ASSETS_DIR` folder over
 `app.js` once. A request outside the explicit routes reads a path from that table and returns it with a MIME type
 guessed by `mime-guess`. A missing path is 404.
 
-Asset caching is content addressed. At startup `src/assets.rs` writes `?v=<first 12 hex chars of SHA-256>` onto every
-local `src` and `href` in `index.html`, and onto the two lazy script URLs inside `app.js`. `src/http.rs` serves a URL
+Asset caching is content addressed. At startup `src/web/assets.rs` writes `?v=<first 12 hex chars of SHA-256>` onto every
+local `src` and `href` in `index.html`, and onto the two lazy script URLs inside `app.js`. `src/web/http.rs` serves a URL
 whose stamp matches the served file as `public, max-age=31536000, immutable`; any other URL, including an old page
 with a stale stamp, gets `no-cache`. A browser or proxy therefore cannot pair a new page with an old script or
 stylesheet.
@@ -225,7 +225,7 @@ offer is declined at once with a notice.
 ## STUN/TURN with coturn REST credentials
 
 WebRTC needs STUN to discover a public address and TURN to relay when a direct path is impossible, for example
-behind carrier-grade NAT. `src/ice.rs` builds the server list each time a room pairs. `STUN_URLS` is a
+behind carrier-grade NAT. `src/signal/ice.rs` builds the server list each time a room pairs. `STUN_URLS` is a
 comma-separated list, empty for none, defaulting to a public STUN server. `TURN_URLS` is a comma-separated list,
 empty for none. `TURN_SECRET` must be at least 32 characters.
 
@@ -288,9 +288,9 @@ module. They cover the CPace test vectors and key confirmation, invite parsing, 
 reflection, chunk index binding, the reorder buffer, lane caps, saved settings, storage fallbacks, translation
 coverage and the version match between `Cargo.toml` and `web/package.json`.
 
-`cargo test` covers the Rust side: room rules and statistics in `src/rooms.rs`, the asset table, stamps and slots in
-`src/assets.rs`, stamped caching and legal-page routing in `src/http.rs`, the metrics text in `src/metrics.rs`, the TURN credential computation in `src/ice.rs`, and
-the fixed hello key lengths in `src/relay.rs`.
+`cargo test` covers the Rust side: room rules and statistics in `src/signal/rooms.rs`, the asset table, stamps and slots in
+`src/web/assets.rs`, stamped caching and legal-page routing in `src/web/http.rs`, the metrics text in `src/metrics.rs`, the TURN credential computation in `src/signal/ice.rs`, and
+the fixed hello key lengths in `src/signal/relay.rs`.
 
 ## oxlint and oxfmt
 

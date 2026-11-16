@@ -16,7 +16,7 @@ export interface DiscoverHandlers {
 }
 
 const RETRY_MS = 5000;
-/** The server sends at most its GROUP_MAX (src/lobby.rs). */
+/** The server sends at most its GROUP_MAX (src/discover/lobby.rs). */
 const LIST_MAX = 32;
 
 function parseFound(raw: unknown): Found | null {

@@ -1,6 +1,6 @@
 //! The tuning settings both halves share: the transfer knobs, the invite lengths and the keep-alive choices. The
 //! server reads them from the environment at startup, checks them, and writes them into the page for the frontend
-//! (src/assets.rs); web/src/config.ts holds the same defaults for unit tests. A bad value stops the server with a
+//! (src/web/assets.rs); web/src/config.ts holds the same defaults for unit tests. A bad value stops the server with a
 //! message naming the variable.
 
 use serde::Serialize;

@@ -16,7 +16,7 @@ async function detector(): Promise<Detect> {
 
     return async (v) => (await barcodeDetector.detect(v))[0]?.rawValue ?? null;
   }
-  // A separate file loaded only here; the server adds its content hash to this URL (src/assets.rs).
+  // A separate file loaded only here; the server adds its content hash to this URL (src/web/assets.rs).
   const url: string = "/jsqr.js";
   const { default: jsQR } = (await import(url)) as typeof import("jsqr");
   const canvas = document.createElement("canvas");

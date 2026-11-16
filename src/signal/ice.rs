@@ -15,7 +15,7 @@ use std::{
 };
 
 use crate::bucket::Bucket;
-use crate::sockets::block;
+use crate::signal::sockets::block;
 
 pub(crate) const TURN_TTL_SECS: u64 = 120;
 /// TURN credentials one client gets at once, then per second. A pairing costs two (one per peer), each extra relayed

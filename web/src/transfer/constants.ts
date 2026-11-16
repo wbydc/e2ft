@@ -6,7 +6,7 @@ import { CONFIG } from "../config.ts";
 /** Data connections per direction when connection 0 went direct, connection 0 included. */
 export const MAX_DIRECT = CONFIG.MAX_DIRECT;
 /** The TURN server's per-user allocation quota (coturn's `user-quota`): allocations per TURN username, which
- *  both browsers of a pairing usually share, since the server makes it from the expiry second (`src/ice.rs`). */
+ *  both browsers of a pairing usually share, since the server makes it from the expiry second (`src/signal/ice.rs`). */
 export const TURN_QUOTA = CONFIG.TURN_QUOTA;
 
 /** A channel over this many queued bytes stops the sender until it drains below BUFFER_LOW. */

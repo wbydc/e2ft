@@ -47,7 +47,7 @@ const ICE_WAIT_MS = 2000;
 /** Longest keep-alive: past it no rejoin can succeed. */
 const GIVE_UP_MS = 30 * 60_000;
 
-// A separate file loaded only when a room starts; the server adds its content hash to this URL (src/assets.rs).
+// A separate file loaded only when a room starts; the server adds its content hash to this URL (src/web/assets.rs).
 const RISTRETTO_URL: string = "/ristretto.js";
 let ristrettoLoad: Promise<Ristretto> | undefined;
 const loadRistretto = () => (ristrettoLoad ??= import(RISTRETTO_URL) as Promise<Ristretto>);

@@ -1,36 +1,32 @@
 //! e2ft signalling server: serves the embedded frontend and relays opaque sealed frames between the two
 //! peers of a room. It never sees secretKey or file metadata and logs nothing.
 
-mod assets;
 mod bucket;
 mod config;
 mod discover;
 mod health;
-mod http;
-mod ice;
-mod lobby;
 mod metrics;
-mod relay;
-mod rooms;
 mod settings;
-mod sockets;
-mod stun;
+mod signal;
+mod web;
 
 use std::{
     net::SocketAddr,
     sync::{Arc, Mutex, atomic::AtomicU64},
 };
 
+use web::{assets, http};
 use assets::Assets;
 use axum::{Router, middleware, routing::get};
 use config::Config;
-use discover::Cidr;
+use discover::{Cidr, lobby};
 use ice::Ice;
 use lobby::Lobby;
 use metrics::Metrics;
 use relay::Tx;
 use rooms::Rooms;
 use settings::Settings;
+use signal::{ice, relay, rooms, sockets};
 use sockets::{DISCOVER_PER_CLIENT, PER_CLIENT, Sockets};
 
 /// What every request handler shares: the files to serve, the rooms, open /ws and /discover sockets per client, the next peer id, the

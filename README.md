@@ -20,7 +20,7 @@ codes match (`web/src/net/signal.ts`, `docs/protocol.md`).
 
 If the browsers cannot reach each other directly, they can use a configured TURN relay. The relay forwards
 encrypted packets and cannot read them, but it does see the two IP addresses. Rooms live in the server's memory
-(`src/rooms.rs`). A room is deleted when either side leaves, or after its keep-alive runs out. The keep-alive is 5
+(`src/signal/rooms.rs`). A room is deleted when either side leaves, or after its keep-alive runs out. The keep-alive is 5
 minutes by default and can be set to Off, 1, 5, 15 or 30 minutes.
 
 What the server sees:
@@ -153,7 +153,7 @@ rooms and a second instance would not see the first one's rooms.
 | `ASSETS_DIR` | unset | A branding folder served over the built-in files (see Branding). Unset serves the neutral app. |
 | `TRUSTED_PROXIES` | empty | Addresses or CIDR blocks of your reverse proxies, comma-separated. Needed for same-network discovery behind a proxy (see Reverse proxy). A bad entry stops the server at startup. |
 
-The settings are read by `src/config.rs` and `src/ice.rs`.
+The settings are read by `src/config.rs` and `src/signal/ice.rs`.
 
 ### Tuning settings
 

@@ -31,24 +31,25 @@ relayed channel, then encrypt every signalling frame and file chunk.
 
 ### Server modules
 
-One axum binary. Each file has one role.
+One axum binary. Each file has one role. Files of one feature sit in a folder (`signal/`, `web/`, `discover/`, `health/`) beside a parent file of the same name.
 
 | File | Role |
 |---|---|
 | `src/main.rs` | Runs the health check for `--health`; otherwise builds the shared `App` state (rooms, peer id counter, ICE settings, metrics counters), the routers and the optional metrics listener, and handles SIGTERM and SIGINT. |
 | `src/config.rs` | Reads `ADDR`, `METRICS`, `METRICS_ADDR`, `ASSETS_DIR`, `TRUSTED_PROXIES`, `ROOM_WAIT` and `ROOMS_PER_CLIENT` from the environment. |
-| `src/assets.rs` | Builds the table of every served file at startup: the frontend embedded by `rust-embed`, the optional assets folder over it, the content stamps in `index.html` and `app.js`, the page slots and the version. |
-| `src/http.rs` | Serves that table, the stamped asset cache rules, the optional legal pages, and the security headers. |
-| `src/relay.rs` | The `/ws` endpoint: hello parsing and validation, the per-connection read and write loops, ping and idle timeouts, the per-client socket limit and per-socket byte rate, binary frame relay, leave and away handling, and the wait for a joiner. |
-| `src/rooms.rs` | Pure room state: an access key maps to a creator seat and a joiner seat, each with a token and either a connected peer or an away-until time. Also the creation time, the room cap, the pairing counter and the statistics. |
-| `src/sockets.rs` | Pure count of open sockets per client address (IPv6 by its /64), one count for `/ws` (16) and one for `/discover` (32); `rooms.rs` counts created rooms by the same address. |
+| `src/settings.rs` | Reads the tuning settings both halves share (transfer knobs, invite lengths, keep-alive choices) from the environment, checks their bounds, and hands them to `src/web/assets.rs`, which writes them into `index.html` for the frontend. |
 | `src/bucket.rs` | The token bucket that limits how fast a socket may send: `/discover` frames of one type, `/ws` relayed bytes. |
-| `src/lobby.rs` | Pure discovery state: the visible home pages grouped by a keyed hash of their network, the address rules that decide whether an address may form a group, the name bounds, and the rate for one frame type. |
-| `src/discover.rs` | The `/discover` endpoint: finds the client address (socket peer, or `X-Forwarded-For` behind trusted proxies), enters the page into its group, announces the group on every change, and passes asks and answers inside one group; an answer reaches only a page whose ask is still open. Its pings and idle timeout are shorter than `/ws`'s, and a socket that sends `hello` or `ask` too fast is closed. |
-| `src/ice.rs` | Builds the ICE server list from `STUN_URLS` and `TURN_URLS`, with TURN credentials. |
-| `src/health.rs` | `e2ft --health`, the image's health check: one `GET /` to `ADDR`, then for each TURN server a Binding, a signed Allocate and a zero-lifetime Refresh. Exits 0, or 1 when the server does not answer, 3 when a TURN server fails, 4 when coturn rejects the credential (2 is Docker's reserved code); never prints the secret or the credential. |
-| `src/stun.rs` | Pure STUN and TURN message encoding for the health check: the header, attributes, `MESSAGE-INTEGRITY` with the long-term key, and the reply's error code. |
 | `src/metrics.rs` | Counters, gauges and the Prometheus text for `GET /metrics`. |
+| `src/web/assets.rs` | Builds the table of every served file at startup: the frontend embedded by `rust-embed`, the optional assets folder over it, the content stamps in `index.html` and `app.js`, the page slots and the version. |
+| `src/web/http.rs` | Serves that table, the stamped asset cache rules, the optional legal pages, and the security headers. |
+| `src/signal/relay.rs` | The `/ws` endpoint: hello parsing and validation, the per-connection read and write loops, ping and idle timeouts, the per-client socket limit and per-socket byte rate, binary frame relay, leave and away handling, and the wait for a joiner. |
+| `src/signal/rooms.rs` | Pure room state: an access key maps to a creator seat and a joiner seat, each with a token and either a connected peer or an away-until time. Also the creation time, the room cap, the pairing counter and the statistics. |
+| `src/signal/sockets.rs` | Pure count of open sockets per client address (IPv6 by its /64), one count for `/ws` (16) and one for `/discover` (32); `rooms.rs` counts created rooms by the same address. |
+| `src/signal/ice.rs` | Builds the ICE server list from `STUN_URLS` and `TURN_URLS`, with TURN credentials. |
+| `src/discover.rs` | The `/discover` endpoint: finds the client address (socket peer, or `X-Forwarded-For` behind trusted proxies), enters the page into its group, announces the group on every change, and passes asks and answers inside one group; an answer reaches only a page whose ask is still open. Its pings and idle timeout are shorter than `/ws`'s, and a socket that sends `hello` or `ask` too fast is closed. |
+| `src/discover/lobby.rs` | Pure discovery state: the visible home pages grouped by a keyed hash of their network, the address rules that decide whether an address may form a group, the name bounds, and the rate for one frame type. |
+| `src/health.rs` | `e2ft --health`, the image's health check: one `GET /` to `ADDR`, then for each TURN server a Binding, a signed Allocate and a zero-lifetime Refresh. Exits 0, or 1 when the server does not answer, 3 when a TURN server fails, 4 when coturn rejects the credential (2 is Docker's reserved code); never prints the secret or the credential. |
+| `src/health/stun.rs` | Pure STUN and TURN message encoding for the health check: the header, attributes, `MESSAGE-INTEGRITY` with the long-term key, and the reply's error code. |
 
 ### HTTP surface
 
@@ -459,7 +460,7 @@ folder below). `web/src/config.ts` reads them from the page once, at import.
 
 ## Assets folder
 
-At startup `src/assets.rs` builds one in-memory table of every file the server sends, and requests read only that
+At startup `src/web/assets.rs` builds one in-memory table of every file the server sends, and requests read only that
 table, never the filesystem:
 
 1. The embedded `web/dist/` files.

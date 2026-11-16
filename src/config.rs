@@ -13,7 +13,7 @@ pub(crate) struct Config {
     pub(crate) addr: SocketAddr,
     /// `METRICS=true` turns on `/metrics` on `METRICS_ADDR`, never on the public router.
     pub(crate) metrics_addr: Option<SocketAddr>,
-    /// `ASSETS_DIR`: the optional folder served over the embedded frontend (src/assets.rs); empty is unset.
+    /// `ASSETS_DIR`: the optional folder served over the embedded frontend (src/web/assets.rs); empty is unset.
     pub(crate) assets_dir: Option<PathBuf>,
     /// `TRUSTED_PROXIES`: comma-separated addresses or CIDR blocks of the reverse proxies in front of the server,
     /// whose `X-Forwarded-For` names the client. Empty: the socket's peer is the client.
@@ -52,7 +52,7 @@ impl Config {
             .unwrap_or(900);
         let rooms_per_client = std::env::var("ROOMS_PER_CLIENT")
             .map(|text| text.parse().expect("ROOMS_PER_CLIENT must be a whole number"))
-            .unwrap_or(crate::rooms::ROOMS_PER_CLIENT);
+            .unwrap_or(crate::signal::rooms::ROOMS_PER_CLIENT);
 
         Config {
             addr,

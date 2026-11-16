@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::sockets::block;
+use crate::signal::sockets::block;
 
 pub type PeerId = u64;
 

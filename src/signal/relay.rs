@@ -22,9 +22,9 @@ use tokio::{sync::mpsc, task::JoinHandle};
 use crate::App;
 use crate::bucket::Bucket;
 use crate::discover::client;
-use crate::ice::Ice;
+use crate::signal::ice::Ice;
 use crate::metrics::Metrics;
-use crate::rooms::{Dropped, End, PeerId, Role, Seated};
+use crate::signal::rooms::{Dropped, End, PeerId, Role, Seated};
 
 /// Sealed SDP/ICE frames are a few KB; anything bigger is not ours.
 const MAX_FRAME: usize = 64 * 1024;
