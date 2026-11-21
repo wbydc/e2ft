@@ -7,7 +7,7 @@ RUN npm ci --ignore-scripts
 COPY . /app/
 RUN npm run build
 
-FROM rust:1.99.1-slim-bookworm AS server
+FROM rust:1.100.0-slim-bookworm AS server
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 # Dependencies alone, in a layer the registry cache keeps (buildx does not export cache mounts).
