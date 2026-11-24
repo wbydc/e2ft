@@ -1,55 +1,117 @@
-import { test } from "node:test";
+import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { NAME_MAX, cleanName, deviceLabel, parseDevice, randomName } from "../device.ts";
 
-test("a random name is two capitalized words and passes its own bounds", () => {
-  for (let i = 0; i < 50; i++) {
-    const name = randomName();
-    assert.match(name, /^[A-Z][a-z]+ [A-Z][a-z]+$/);
-    assert.equal(cleanName(name), name);
-  }
-});
+describe("device", () => {
+  describe("randomName", () => {
+    test("a random name is two capitalized words and passes its own bounds", () => {
+      const names = Array.from({ length: 50 }, () => randomName());
 
-test("names are trimmed, cut to the server's limit in chars and stripped of control characters", () => {
-  assert.equal(cleanName("  Kitchen Laptop  "), "Kitchen Laptop");
-  assert.equal(cleanName("a\nb\u0007c"), "a b c");
-  assert.equal(cleanName("Otter\u202Egnp.exe"), "Otter gnp.exe", "a right-to-left override");
-  assert.equal(Array.from(cleanName("é".repeat(NAME_MAX + 5))!).length, NAME_MAX);
-  assert.equal(
-    cleanName("x".repeat(NAME_MAX - 1) + " tail"),
-    "x".repeat(NAME_MAX - 1),
-    "no trailing space after the cut",
-  );
-  for (const empty of ["", "   ", "\n\t", 7, null, undefined]) assert.equal(cleanName(empty), null);
-});
+      const badlyCased = names.filter((name) => !/^[A-Z][a-z]+ [A-Z][a-z]+$/.test(name));
+      const dirty = names.filter((name) => cleanName(name) !== name);
 
-test("the label names browser and system from the user agent", () => {
-  const cases: [string, string][] = [
-    ["Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0", "Firefox, Linux"],
-    ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36", "Chrome, Windows"],
-    ["Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36 Edg/140.0", "Edge, Windows"],
-    [
-      "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36",
-      "Chrome, Android",
-    ],
-    [
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
-      "Safari, iOS",
-    ],
-    [
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
-      "Safari, macOS",
-    ],
-    ["curl/8", "Browser"],
-  ];
-  for (const [userAgent, label] of cases) assert.equal(deviceLabel(userAgent), label);
-});
+      assert.deepEqual(badlyCased, []);
+      assert.deepEqual(dirty, []);
+    });
+  });
 
-test("saved device settings are untrusted: hidden unless exactly true, a bad name replaced", () => {
-  assert.deepEqual(parseDevice({ visible: true, name: " Den " }), { visible: true, name: "Den" });
-  for (const raw of [null, "x", { visible: "yes", name: 5 }, { visible: 1 }]) {
-    const device = parseDevice(raw);
-    assert.equal(device.visible, false);
-    assert.equal(cleanName(device.name), device.name);
-  }
+  describe("cleanName", () => {
+    test("trims spaces around a name", () => {
+      const name = cleanName("  Kitchen Laptop  ");
+
+      assert.equal(name, "Kitchen Laptop");
+    });
+
+    test("replaces control characters with spaces", () => {
+      const name = cleanName("a\nb\u0007c");
+
+      assert.equal(name, "a b c");
+    });
+
+    test("replaces a right-to-left override with a space", () => {
+      const name = cleanName("Otter\u202Egnp.exe");
+
+      assert.equal(name, "Otter gnp.exe", "a right-to-left override");
+    });
+
+    test("cuts a long name to the server's limit in chars", () => {
+      const name = cleanName("é".repeat(NAME_MAX + 5))!;
+
+      assert.equal(Array.from(name).length, NAME_MAX);
+    });
+
+    test("drops the space left at the cut", () => {
+      const name = cleanName("x".repeat(NAME_MAX - 1) + " tail");
+
+      assert.equal(name, "x".repeat(NAME_MAX - 1), "no trailing space after the cut");
+    });
+
+    test("turns a blank name into null", () => {
+      const names = ["", "   ", "\n\t"].map((empty) => cleanName(empty));
+
+      assert.deepEqual(names, [null, null, null]);
+    });
+
+    test("turns a non-text name into null", () => {
+      const names = [7, null, undefined].map((empty) => cleanName(empty));
+
+      assert.deepEqual(names, [null, null, null]);
+    });
+  });
+
+  describe("deviceLabel", () => {
+    test("names the browser and system from the user agent", () => {
+      const cases: [string, string][] = [
+        ["Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0", "Firefox, Linux"],
+        [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
+          "Chrome, Windows",
+        ],
+        ["Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36 Edg/140.0", "Edge, Windows"],
+        [
+          "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile Safari/537.36",
+          "Chrome, Android",
+        ],
+        [
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+          "Safari, iOS",
+        ],
+        [
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+          "Safari, macOS",
+        ],
+        ["curl/8", "Browser"],
+      ];
+
+      const labels = cases.map(([userAgent]) => deviceLabel(userAgent));
+
+      assert.deepEqual(
+        labels,
+        cases.map(([, label]) => label),
+      );
+    });
+  });
+
+  describe("parseDevice", () => {
+    test("keeps a visible device with a trimmed name", () => {
+      const device = parseDevice({ visible: true, name: " Den " });
+
+      assert.deepEqual(device, { visible: true, name: "Den" });
+    });
+
+    test("hides an invalid saved device and replaces its name", () => {
+      const raws = [null, "x", { visible: "yes", name: 5 }, { visible: 1 }];
+
+      const devices = raws.map((raw) => parseDevice(raw));
+
+      assert.deepEqual(
+        devices.map((device) => device.visible),
+        [false, false, false, false],
+      );
+      assert.deepEqual(
+        devices.map((device) => cleanName(device.name)),
+        devices.map((device) => device.name),
+      );
+    });
+  });
 });

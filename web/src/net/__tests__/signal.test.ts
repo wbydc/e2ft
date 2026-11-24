@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { afterEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { Signal } from "../signal.ts";
@@ -14,6 +14,7 @@ Object.assign(globalThis, { WebSocket: FakeSocket, location: { protocol: "http:"
 
 const pairing = (gen: number) => ({ t: "joined", iceServers: [], gen, keepAlive: 0 });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 10));
+let active: Signal | undefined;
 
 function joiner() {
   const failures: unknown[] = [];
@@ -22,36 +23,56 @@ function joiner() {
   });
   FakeSocket.opened = [];
   const signal = new Signal("joiner", "ABCDEFGH", "SECRET", handlers);
+  active = signal;
 
   return { signal, failures, socket: () => FakeSocket.opened.at(-1)! };
 }
 
-test("a reconnect that gets a higher pairing number carries on", async () => {
-  const { signal, failures, socket } = joiner();
-  socket().serverSays(pairing(1));
+async function reconnectedJoiner(gen: number) {
+  const joined = joiner();
+  joined.socket().serverSays(pairing(gen));
   await tick();
-  socket().onclose?.();
-  await tick();
-  socket().serverSays(pairing(2));
+  joined.socket().onclose?.();
   await tick();
 
-  assert.equal(FakeSocket.opened.length, 2);
-  assert.deepEqual(failures, []);
-  signal.leave();
+  return joined;
+}
+
+afterEach(() => {
+  active?.leave();
+  active = undefined;
 });
 
-test("a reconnect that gets an earlier or the same pairing number again ends the room", async () => {
-  for (const replayed of [1, 2]) {
-    const { signal, failures, socket } = joiner();
-    socket().serverSays(pairing(2));
-    await tick();
-    socket().onclose?.();
-    await tick();
-    socket().serverSays(pairing(replayed));
-    await tick();
+describe("Signal", () => {
+  describe("reconnect", () => {
+    test("a reconnect that gets a higher pairing number carries on", async () => {
+      const { failures, socket } = await reconnectedJoiner(1);
 
-    assert.equal(failures.length, 1, `gen ${replayed} after 2`);
-    assert.match(String(failures[0]), /earlier pairing/);
-    signal.leave();
-  }
+      socket().serverSays(pairing(2));
+      await tick();
+
+      assert.equal(FakeSocket.opened.length, 2);
+      assert.deepEqual(failures, []);
+    });
+
+    test("an earlier pairing number after a reconnect ends the room", async () => {
+      const { failures, socket } = await reconnectedJoiner(2);
+
+      socket().serverSays(pairing(1));
+      await tick();
+
+      assert.equal(failures.length, 1, "gen 1 after 2");
+      assert.match(String(failures[0]), /earlier pairing/);
+    });
+
+    test("the same pairing number after a reconnect ends the room", async () => {
+      const { failures, socket } = await reconnectedJoiner(2);
+
+      socket().serverSays(pairing(2));
+      await tick();
+
+      assert.equal(failures.length, 1, "gen 2 after 2");
+      assert.match(String(failures[0]), /earlier pairing/);
+    });
+  });
 });
