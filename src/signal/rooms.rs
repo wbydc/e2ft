@@ -422,14 +422,178 @@ mod tests {
         Instant::now()
     }
 
-    #[test]
-    fn create_join_relay_leave() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
+    /// A room with a creator (peer 1) only, created at `t`.
+    fn creator_room() -> (Rooms<&'static str>, Instant) {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
         let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, now()).unwrap();
-        assert_eq!(r.other("k", 1), None, "alone: nobody to relay to");
+        rooms.create("k", 1, HOME, "a", "ta", KEEP, t).unwrap();
+
+        (rooms, t)
+    }
+
+    /// A room with a creator (peer 1) and a joiner (peer 2), joined at `t`.
+    fn joined_room() -> (Rooms<&'static str>, Instant) {
+        let (mut rooms, t) = creator_room();
+        rooms.join("k", 2, "b", "tb", t).unwrap();
+
+        (rooms, t)
+    }
+
+    /// A unit-handle room with a creator (peer 1) only, created at `t`.
+    fn creator_unit_room() -> (Rooms<()>, Instant) {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        rooms.create("k", 1, HOME, (), "ta", KEEP, t).unwrap();
+
+        (rooms, t)
+    }
+
+    /// A unit-handle room with a creator (peer 1) and a joiner (peer 2), joined at `t`.
+    fn joined_unit_room() -> (Rooms<()>, Instant) {
+        let (mut rooms, t) = creator_unit_room();
+        rooms.join("k", 2, (), "tb", t).unwrap();
+
+        (rooms, t)
+    }
+
+    /// A room key `k` left and made again by peer 5, with peer 2 of the old room still around.
+    fn recreated_room() -> (Rooms<()>, Instant) {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        rooms.create("k", 1, HOME, (), "ta", KEEP, t).unwrap();
+        rooms.join("k", 2, (), "tb", t).unwrap();
+        rooms.leave("k", 1);
+        rooms.create("k", 5, HOME, (), "tz", KEEP, t).unwrap();
+
+        (rooms, t)
+    }
+
+    /// A joined room whose joiner (peer 2) dropped at `t`, away until `t + KEEP`.
+    fn away_joiner() -> (Rooms<&'static str>, Instant) {
+        let (mut rooms, t) = joined_room();
+        rooms.disconnect("k", 2, t);
+
+        (rooms, t)
+    }
+
+    /// A joined room whose creator (peer 1) dropped at `t`, away until `t + KEEP`.
+    fn away_creator() -> (Rooms<&'static str>, Instant) {
+        let (mut rooms, t) = joined_room();
+        rooms.disconnect("k", 1, t);
+
+        (rooms, t)
+    }
+
+    /// A room with a creator (peer 1) only, whose socket dropped at `t`; nobody is left to tell.
+    fn creator_away() -> (Rooms<&'static str>, Instant) {
+        let (mut rooms, t) = creator_room();
+        rooms.disconnect("k", 1, t);
+
+        (rooms, t)
+    }
+
+    /// `ROOMS_MAX` rooms, so the next create is over the server's cap.
+    fn rooms_at_max() -> Rooms<()> {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        for i in 0..ROOMS_MAX {
+            rooms.create(&format!("k{i}"), i as PeerId, client(i), (), "t", KEEP, t).unwrap();
+        }
+
+        rooms
+    }
+
+    /// A room with a taken joiner seat, and a second room still inside its wait.
+    fn joined_and_later_rooms() -> (Rooms<&'static str>, Instant) {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        rooms.create("joined", 1, HOME, "a", "ta", KEEP, t).unwrap();
+        rooms.join("joined", 2, "b", "tb", t).unwrap();
+        rooms.leave("joined", 2);
+        rooms.create("joined", 3, HOME, "c", "tc", KEEP, t).unwrap();
+        rooms.join("joined", 4, "d", "td", t).unwrap();
+        rooms.create("later", 5, HOME, "e", "te", KEEP, t + Duration::from_secs(1)).unwrap();
+
+        (rooms, t)
+    }
+
+    /// A joined room whose joiner dropped at `t + WAIT`, away until then plus the keep-alive.
+    fn joiner_away_late() -> (Rooms<&'static str>, Instant) {
+        let (mut rooms, t) = joined_room();
+        rooms.disconnect("k", 2, t + WAIT);
+
+        (rooms, t)
+    }
+
+    /// Two rooms and an away joiner seat, for the stats tests.
+    fn stats_rooms() -> (Rooms<()>, Instant, Instant) {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        rooms.create("a", 1, HOME, (), "t1", KEEP, t).unwrap();
+        rooms.join("a", 2, (), "t2", t).unwrap();
+        rooms.create("b", 3, HOME, (), "t3", Duration::ZERO, t).unwrap();
+        let Dropped::Away { until, .. } = rooms.disconnect("a", 2, t) else {
+            panic!("seat should be away")
+        };
+
+        (rooms, t, until)
+    }
+
+    /// `ROOMS_PER_CLIENT` rooms, all created by one IPv4 client.
+    fn filled_for_one_client() -> Rooms<()> {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        for i in 0..ROOMS_PER_CLIENT {
+            rooms.create(&format!("k{i}"), 1, HOME, (), "t", KEEP, t).unwrap();
+        }
+
+        rooms
+    }
+
+    /// Rooms filling the IPv6 /64s 1 to `subnets` of one /48, `ROOMS_PER_CLIENT` rooms each.
+    fn filled_ipv6_subnets(subnets: u32) -> Rooms<()> {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        for subnet in 1..=subnets {
+            for i in 0..ROOMS_PER_CLIENT {
+                let address = ip(&format!("2001:db8:1:{subnet:x}::{i:x}"));
+                rooms.create(&format!("r{subnet}-{i}"), 1, address, (), "t", KEEP, t).unwrap();
+            }
+        }
+
+        rooms
+    }
+
+    /// A client's rooms filled with the `fill` rooms and the room `k` a cycle makes.
+    fn ready_for_a_cycle() -> (Rooms<&'static str>, Instant) {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        for i in 1..ROOMS_PER_CLIENT {
+            // Created a second after `k`, so sweeping `k`'s wait spares them.
+            rooms.create(&format!("fill{i}"), 9, HOME, "f", "t", KEEP, t + Duration::from_secs(1)).unwrap();
+        }
+        rooms.create("k", 1, HOME, "a", "ta", KEEP, t).unwrap();
+
+        (rooms, t)
+    }
+
+    #[test]
+    fn a_lone_creator_has_nobody_to_relay_to() {
+        let (rooms, _) = creator_room();
+
+        let other = rooms.other("k", 1);
+
+        assert_eq!(other, None, "alone: nobody to relay to");
+    }
+
+    #[test]
+    fn a_join_tells_the_joiner_about_the_creator() {
+        let (mut rooms, t) = creator_room();
+
+        let seated = rooms.join("k", 2, "b", "tb", t);
+
         assert_eq!(
-            r.join("k", 2, "b", "tb", t),
+            seated,
             Ok(Seated {
                 pairing: 1,
                 other: Some("a"),
@@ -437,93 +601,186 @@ mod tests {
                 keep_alive: KEEP
             })
         );
-        assert_eq!(r.other("k", 1), Some(&"b"));
-        assert_eq!(r.other("k", 2), Some(&"a"));
-        assert_eq!(r.leave("k", 2), Some("a"));
-        assert_eq!(r.stats().rooms, 0, "room deleted when either peer leaves");
-        assert_eq!(
-            r.join("k", 3, "c", "tc", t),
-            Err(RoomError::NotFound),
-            "room gone after leave"
-        );
     }
 
     #[test]
-    fn third_peer_and_duplicate_create_rejected() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, (), "ta", KEEP, now()).unwrap();
-        assert_eq!(r.create("k", 9, HOME, (), "tx", KEEP, now()), Err(RoomError::Exists));
-        r.join("k", 2, (), "tb", t).unwrap();
-        assert_eq!(r.join("k", 3, (), "tc", t), Err(RoomError::Full));
-        assert_eq!(r.other("k", 3), None);
+    fn the_creator_relays_to_the_joiner() {
+        let (rooms, _) = joined_room();
+
+        let other = rooms.other("k", 1);
+
+        assert_eq!(other, Some(&"b"));
     }
 
     #[test]
-    fn an_away_joiner_seat_cannot_be_joined_by_someone_else() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, (), "ta", KEEP, now()).unwrap();
-        r.join("k", 2, (), "tb", t).unwrap();
-        assert!(matches!(r.disconnect("k", 2, t), Dropped::Away { .. }));
-        assert_eq!(r.join("k", 3, (), "tc", t), Err(RoomError::Full));
+    fn the_joiner_relays_to_the_creator() {
+        let (rooms, _) = joined_room();
+
+        let other = rooms.other("k", 2);
+
+        assert_eq!(other, Some(&"a"));
     }
 
     #[test]
-    fn stale_peer_cannot_touch_a_new_room_with_the_same_key() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, (), "ta", KEEP, now()).unwrap();
-        r.join("k", 2, (), "tb", t).unwrap();
-        r.leave("k", 1);
-        r.create("k", 5, HOME, (), "tz", KEEP, now()).unwrap();
-        assert_eq!(r.leave("k", 2), None, "peer 2 was in the old room only");
-        assert_eq!(r.disconnect("k", 2, t), Dropped::Gone(None));
-        assert_eq!(r.other("k", 2), None);
-        assert_eq!(r.stats().rooms, 1);
+    fn a_leave_ends_the_room_and_tells_the_other_peer() {
+        let (mut rooms, _) = joined_room();
+
+        let told = rooms.leave("k", 2);
+        let stats = rooms.stats();
+
+        assert_eq!(told, Some("a"));
+        assert_eq!(stats.rooms, 0, "room deleted when either peer leaves");
+    }
+
+    #[test]
+    fn a_room_that_ended_cannot_be_joined() {
+        let (mut rooms, t) = joined_room();
+        rooms.leave("k", 2);
+
+        let joined = rooms.join("k", 3, "c", "tc", t);
+
+        assert_eq!(joined, Err(RoomError::NotFound), "room gone after leave");
+    }
+
+    #[test]
+    fn a_duplicate_create_is_rejected() {
+        let (mut rooms, _) = creator_unit_room();
+
+        let created = rooms.create("k", 9, HOME, (), "tx", KEEP, now());
+
+        assert_eq!(created, Err(RoomError::Exists));
+    }
+
+    #[test]
+    fn a_third_peer_cannot_join() {
+        let (mut rooms, t) = joined_unit_room();
+
+        let joined = rooms.join("k", 3, (), "tc", t);
+        let other = rooms.other("k", 3);
+
+        assert_eq!(joined, Err(RoomError::Full));
+        assert_eq!(other, None);
+    }
+
+    #[test]
+    fn a_dropped_joiner_seat_waits_as_away() {
+        let (mut rooms, t) = joined_unit_room();
+
+        let dropped = rooms.disconnect("k", 2, t);
+
+        assert!(matches!(dropped, Dropped::Away { .. }));
+    }
+
+    #[test]
+    fn a_third_peer_cannot_take_an_away_joiner_seat() {
+        let (mut rooms, t) = joined_unit_room();
+        rooms.disconnect("k", 2, t);
+
+        let joined = rooms.join("k", 3, (), "tc", t);
+
+        assert_eq!(joined, Err(RoomError::Full));
+    }
+
+    #[test]
+    fn a_peer_from_an_old_room_cannot_leave_the_new_one() {
+        let (mut rooms, _) = recreated_room();
+
+        let left = rooms.leave("k", 2);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(left, None, "peer 2 was in the old room only");
+        assert_eq!(live, 1);
+    }
+
+    #[test]
+    fn a_socket_from_an_old_room_disconnects_as_gone() {
+        let (mut rooms, t) = recreated_room();
+
+        let dropped = rooms.disconnect("k", 2, t);
+
+        assert_eq!(dropped, Dropped::Gone(None));
+    }
+
+    #[test]
+    fn a_peer_from_an_old_room_has_nobody_to_relay_to() {
+        let (rooms, _) = recreated_room();
+
+        let other = rooms.other("k", 2);
+
+        assert_eq!(other, None);
     }
 
     #[test]
     fn creator_leaving_alone_deletes_room() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        r.create("k", 1, HOME, (), "ta", KEEP, now()).unwrap();
-        assert_eq!(r.leave("k", 1), None);
-        assert_eq!(r.stats().rooms, 0);
+        let (mut rooms, _) = creator_unit_room();
+
+        let left = rooms.leave("k", 1);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(left, None);
+        assert_eq!(live, 0);
     }
 
     #[test]
     fn keep_alive_off_deletes_the_room_on_disconnect() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
         let t = now();
-        r.create("k", 1, HOME, "a", "ta", Duration::ZERO, now()).unwrap();
-        r.join("k", 2, "b", "tb", t).unwrap();
-        assert_eq!(r.disconnect("k", 2, t), Dropped::Gone(Some("a")));
-        assert_eq!(r.stats().rooms, 0);
+        rooms.create("k", 1, HOME, "a", "ta", Duration::ZERO, now()).unwrap();
+        rooms.join("k", 2, "b", "tb", t).unwrap();
+
+        let dropped = rooms.disconnect("k", 2, t);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(dropped, Dropped::Gone(Some("a")));
+        assert_eq!(live, 0);
     }
 
     #[test]
-    fn a_dropped_peer_rejoins_with_its_token_within_the_keep_alive() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, now()).unwrap();
-        r.join("k", 2, "b", "tb", t).unwrap();
-        let Dropped::Away { until, other } = r.disconnect("k", 2, t) else {
+    fn a_drop_holds_the_seat_for_the_keep_alive_and_tells_the_other() {
+        let (mut rooms, t) = joined_room();
+
+        let Dropped::Away { until, other } = rooms.disconnect("k", 2, t) else {
             panic!("not away")
         };
+
         assert_eq!((until, other), (t + KEEP, Some("a")));
-        assert_eq!(r.other("k", 1), None, "nothing relayed to an away seat");
+    }
+
+    #[test]
+    fn an_away_seat_relays_to_nobody() {
+        let (rooms, _) = away_joiner();
+
+        let other = rooms.other("k", 1);
+
+        assert_eq!(other, None, "nothing relayed to an away seat");
+    }
+
+    #[test]
+    fn a_rejoin_with_the_wrong_token_is_refused() {
+        let (mut rooms, t) = away_joiner();
+
+        let rejoined = rooms.rejoin("k", Role::Joiner, "tX", 3, "b2", t);
+
+        assert_eq!(rejoined, Err(RoomError::NotFound), "wrong token");
+    }
+
+    #[test]
+    fn a_rejoin_with_the_other_seats_token_is_refused() {
+        let (mut rooms, t) = away_joiner();
+
+        let rejoined = rooms.rejoin("k", Role::Creator, "tb", 3, "b2", t);
+
+        assert_eq!(rejoined, Err(RoomError::NotFound), "token of the other seat");
+    }
+
+    #[test]
+    fn a_rejoin_with_its_token_restores_the_seat() {
+        let (mut rooms, t) = away_joiner();
+
+        let rejoined = rooms.rejoin("k", Role::Joiner, "tb", 3, "b2", t);
+
         assert_eq!(
-            r.rejoin("k", Role::Joiner, "tX", 3, "b2", t),
-            Err(RoomError::NotFound),
-            "wrong token"
-        );
-        assert_eq!(
-            r.rejoin("k", Role::Creator, "tb", 3, "b2", t),
-            Err(RoomError::NotFound),
-            "token of the other seat"
-        );
-        assert_eq!(
-            r.rejoin("k", Role::Joiner, "tb", 3, "b2", t),
+            rejoined,
             Ok((
                 Seated {
                     pairing: 2,
@@ -534,132 +791,211 @@ mod tests {
                 None
             ))
         );
-        assert_eq!(r.other("k", 1), Some(&"b2"));
-        assert_eq!(r.sweep(until, WAIT), vec![], "the old absence's deadline does nothing");
-        assert_eq!(r.stats().rooms, 1);
     }
 
     #[test]
-    fn the_keep_alive_running_out_deletes_the_room_and_refuses_a_late_rejoin() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, now()).unwrap();
-        r.join("k", 2, "b", "tb", t).unwrap();
-        let Dropped::Away { until, .. } = r.disconnect("k", 1, t) else {
-            panic!("not away")
-        };
-        assert_eq!(r.sweep(until - Duration::from_millis(1), WAIT), vec![], "not yet");
-        assert_eq!(r.sweep(until, WAIT), vec![(End::Expired, "b")], "the waiting joiner is told");
-        assert_eq!(r.stats().rooms, 0);
-        assert_eq!(
-            r.rejoin("k", Role::Creator, "ta", 3, "a2", t),
-            Err(RoomError::NotFound)
-        );
+    fn a_rejoined_seat_relays_to_the_other() {
+        let (mut rooms, t) = away_joiner();
+        rooms.rejoin("k", Role::Joiner, "tb", 3, "b2", t).unwrap();
+
+        let other = rooms.other("k", 1);
+
+        assert_eq!(other, Some(&"b2"));
     }
 
     #[test]
-    fn a_rejoin_displaces_a_socket_the_server_still_thinks_is_open() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, now()).unwrap();
-        r.join("k", 2, "b", "tb", t).unwrap();
-        let (seated, displaced) = r.rejoin("k", Role::Creator, "ta", 3, "a2", t).unwrap();
+    fn a_rejoined_seat_leaves_no_expiry_to_sweep() {
+        let (mut rooms, t) = away_joiner();
+        rooms.rejoin("k", Role::Joiner, "tb", 3, "b2", t).unwrap();
+
+        let swept = rooms.sweep(t + KEEP, WAIT);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(swept, vec![], "the old absence's deadline does nothing");
+        assert_eq!(live, 1);
+    }
+
+    #[test]
+    fn a_dropped_creator_leaves_no_one_to_tell() {
+        let (mut rooms, t) = creator_room();
+
+        let dropped = rooms.disconnect("k", 1, t);
+
+        assert!(matches!(dropped, Dropped::Away { other: None, .. }));
+    }
+
+    #[test]
+    fn a_seat_is_not_swept_before_its_keep_alive_runs_out() {
+        let (mut rooms, t) = away_creator();
+
+        let swept = rooms.sweep(t + KEEP - Duration::from_millis(1), WAIT);
+
+        assert_eq!(swept, vec![], "not yet");
+    }
+
+    #[test]
+    fn a_seat_whose_keep_alive_ran_out_ends_the_room() {
+        let (mut rooms, t) = away_creator();
+
+        let swept = rooms.sweep(t + KEEP, WAIT);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(swept, vec![(End::Expired, "b")], "the waiting joiner is told");
+        assert_eq!(live, 0);
+    }
+
+    #[test]
+    fn a_late_rejoin_after_the_keep_alive_is_refused() {
+        let (mut rooms, t) = away_creator();
+        rooms.sweep(t + KEEP, WAIT);
+
+        let rejoined = rooms.rejoin("k", Role::Creator, "ta", 3, "a2", t);
+
+        assert_eq!(rejoined, Err(RoomError::NotFound));
+    }
+
+    #[test]
+    fn a_rejoin_displaces_the_socket_still_thought_open() {
+        let (mut rooms, t) = joined_room();
+
+        let (seated, displaced) = rooms.rejoin("k", Role::Creator, "ta", 3, "a2", t).unwrap();
+
         assert_eq!((seated.other, displaced), (Some("b"), Some("a")));
-        assert_eq!(
-            r.disconnect("k", 1, t),
-            Dropped::Gone(None),
-            "the displaced socket closing changes nothing"
-        );
-        assert_eq!(r.other("k", 2), Some(&"a2"));
-        assert_eq!(r.stats().rooms, 1);
     }
 
     #[test]
-    fn joining_while_the_creator_is_away_reports_how_long_it_waits() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, now()).unwrap();
-        assert!(matches!(
-            r.disconnect("k", 1, t),
-            Dropped::Away { other: None, .. }
-        ));
-        let s = r
-            .join("k", 2, "b", "tb", t + Duration::from_secs(100))
-            .unwrap();
-        assert_eq!(
-            (s.other, s.other_away),
-            (None, Some(Duration::from_secs(200)))
-        );
-        let (back, _) = r.rejoin("k", Role::Creator, "ta", 3, "a2", t).unwrap();
+    fn a_displaced_sockets_close_changes_nothing() {
+        let (mut rooms, t) = joined_room();
+        rooms.rejoin("k", Role::Creator, "ta", 3, "a2", t).unwrap();
+
+        let dropped = rooms.disconnect("k", 1, t);
+        let other = rooms.other("k", 2);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(dropped, Dropped::Gone(None), "the displaced socket closing changes nothing");
+        assert_eq!(other, Some(&"a2"));
+        assert_eq!(live, 1);
+    }
+
+    #[test]
+    fn a_joiner_is_told_how_long_the_away_creator_waits() {
+        let (mut rooms, t) = creator_away();
+
+        let seated = rooms.join("k", 2, "b", "tb", t + Duration::from_secs(100)).unwrap();
+
+        assert_eq!((seated.other, seated.other_away), (None, Some(Duration::from_secs(200))));
+    }
+
+    #[test]
+    fn the_creator_rejoining_sees_the_joiner() {
+        let (mut rooms, t) = creator_away();
+        rooms.join("k", 2, "b", "tb", t + Duration::from_secs(100)).unwrap();
+
+        let (back, _) = rooms.rejoin("k", Role::Creator, "ta", 3, "a2", t).unwrap();
+
         assert_eq!((back.pairing, back.other), (2, Some("b")));
     }
 
     #[test]
-    fn creating_past_rooms_max_is_busy_until_a_room_ends() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        for i in 0..ROOMS_MAX {
-            r.create(&format!("k{i}"), i as PeerId, client(i), (), "t", KEEP, t).unwrap();
-        }
-        assert_eq!(r.create("late", 0, HOME, (), "t", KEEP, t), Err(RoomError::Busy));
-        r.leave("k0", 0);
-        assert_eq!(r.create("late", 0, HOME, (), "t", KEEP, t), Ok(()));
+    fn creating_past_rooms_max_is_busy() {
+        let mut rooms = rooms_at_max();
+
+        let created = rooms.create("late", 0, HOME, (), "t", KEEP, now());
+
+        assert_eq!(created, Err(RoomError::Busy));
     }
 
     #[test]
-    fn a_room_nobody_joined_ends_when_its_wait_runs_out() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, t).unwrap();
-        assert_eq!(r.sweep(t + WAIT - Duration::from_millis(1), WAIT), vec![], "not yet");
-        assert_eq!(r.sweep(t + WAIT, WAIT), vec![(End::Unjoined, "a")]);
-        assert_eq!(r.stats().rooms, 0);
-        assert_eq!(r.stats().ended[End::Unjoined as usize], 1);
-        assert_eq!(r.join("k", 2, "b", "tb", t), Err(RoomError::NotFound));
+    fn a_room_ending_frees_a_slot_at_rooms_max() {
+        let mut rooms = rooms_at_max();
+        rooms.leave("k0", 0);
+
+        let created = rooms.create("late", 0, HOME, (), "t", KEEP, now());
+
+        assert_eq!(created, Ok(()));
+    }
+
+    #[test]
+    fn an_unjoined_room_is_not_swept_before_its_wait_runs_out() {
+        let (mut rooms, t) = creator_room();
+
+        let swept = rooms.sweep(t + WAIT - Duration::from_millis(1), WAIT);
+
+        assert_eq!(swept, vec![], "not yet");
+    }
+
+    #[test]
+    fn an_unjoined_room_ends_when_its_wait_runs_out() {
+        let (mut rooms, t) = creator_room();
+
+        let swept = rooms.sweep(t + WAIT, WAIT);
+        let stats = rooms.stats();
+
+        assert_eq!(swept, vec![(End::Unjoined, "a")]);
+        assert_eq!(stats.rooms, 0);
+        assert_eq!(stats.ended[End::Unjoined as usize], 1);
+    }
+
+    #[test]
+    fn a_room_swept_as_unjoined_cannot_be_joined() {
+        let (mut rooms, t) = creator_room();
+        rooms.sweep(t + WAIT, WAIT);
+
+        let joined = rooms.join("k", 2, "b", "tb", t);
+
+        assert_eq!(joined, Err(RoomError::NotFound));
     }
 
     #[test]
     fn the_wait_spares_a_joined_room_and_a_room_created_later() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("joined", 1, HOME, "a", "ta", KEEP, t).unwrap();
-        r.join("joined", 2, "b", "tb", t).unwrap();
-        r.leave("joined", 2);
-        r.create("joined", 3, HOME, "c", "tc", KEEP, t).unwrap();
-        r.join("joined", 4, "d", "td", t).unwrap();
-        r.create("later", 5, HOME, "e", "te", KEEP, t + Duration::from_secs(1)).unwrap();
-        assert_eq!(r.sweep(t + WAIT, WAIT), vec![], "a taken joiner seat, and a room still in its wait");
-        assert_eq!(r.stats().rooms, 2);
-        assert_eq!(r.sweep(t + WAIT + Duration::from_secs(1), WAIT), vec![(End::Unjoined, "e")]);
+        let (mut rooms, t) = joined_and_later_rooms();
+
+        let swept = rooms.sweep(t + WAIT, WAIT);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(swept, vec![], "a taken joiner seat, and a room still in its wait");
+        assert_eq!(live, 2);
     }
 
     #[test]
-    fn a_joiner_that_left_and_came_back_is_not_swept_as_unjoined() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("k", 1, HOME, "a", "ta", KEEP, t).unwrap();
-        r.join("k", 2, "b", "tb", t).unwrap();
-        let Dropped::Away { until, .. } = r.disconnect("k", 2, t + WAIT) else {
-            panic!("not away")
-        };
-        assert_eq!(r.sweep(t + WAIT, WAIT), vec![], "an away joiner still holds its seat");
-        r.rejoin("k", Role::Joiner, "tb", 3, "b2", t + WAIT).unwrap();
-        assert_eq!(r.sweep(until, WAIT), vec![]);
-        assert_eq!(r.stats().rooms, 1);
+    fn the_room_created_later_ends_when_its_own_wait_runs_out() {
+        let (mut rooms, t) = joined_and_later_rooms();
+        rooms.sweep(t + WAIT, WAIT);
+
+        let swept = rooms.sweep(t + WAIT + Duration::from_secs(1), WAIT);
+
+        assert_eq!(swept, vec![(End::Unjoined, "e")]);
     }
 
     #[test]
-    fn stats_count_seats_and_each_way_a_room_ends() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        r.create("a", 1, HOME, (), "t1", KEEP, now()).unwrap();
-        r.join("a", 2, (), "t2", t).unwrap();
-        r.create("b", 3, HOME, (), "t3", Duration::ZERO, now()).unwrap();
-        let Dropped::Away { until, .. } = r.disconnect("a", 2, t) else {
-            panic!("seat should be away")
-        };
+    fn an_away_joiner_still_holds_its_seat() {
+        let (mut rooms, t) = joiner_away_late();
+
+        let swept = rooms.sweep(t + WAIT, WAIT);
+
+        assert_eq!(swept, vec![], "an away joiner still holds its seat");
+    }
+
+    #[test]
+    fn a_rejoined_joiner_is_not_swept() {
+        let (mut rooms, t) = joiner_away_late();
+        rooms.rejoin("k", Role::Joiner, "tb", 3, "b2", t + WAIT).unwrap();
+
+        let swept = rooms.sweep(t + WAIT + KEEP, WAIT);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(swept, vec![]);
+        assert_eq!(live, 1);
+    }
+
+    #[test]
+    fn stats_count_live_seats_and_away_seats() {
+        let (rooms, _, _) = stats_rooms();
+
+        let stats = rooms.stats();
+
         assert_eq!(
-            r.stats(),
+            stats,
             Stats {
                 rooms: 2,
                 here: 2,
@@ -667,18 +1003,20 @@ mod tests {
                 ended: [0, 0, 0, 0]
             }
         );
+    }
 
-        r.disconnect("b", 3, t);
-        r.sweep(until, WAIT);
-        r.create("c", 4, HOME, (), "t4", KEEP, now()).unwrap();
-        r.leave("c", 4);
+    #[test]
+    fn stats_count_each_way_a_room_ends() {
+        let (mut rooms, t, until) = stats_rooms();
+        rooms.disconnect("b", 3, t);
+        rooms.sweep(until, WAIT);
+        rooms.create("c", 4, HOME, (), "t4", KEEP, now()).unwrap();
+        rooms.leave("c", 4);
+
+        let stats = rooms.stats();
+
         assert_eq!(
-            r.leave("c", 4),
-            None,
-            "a second leave of a gone room counts nothing"
-        );
-        assert_eq!(
-            r.stats(),
+            stats,
             Stats {
                 rooms: 0,
                 here: 0,
@@ -689,83 +1027,174 @@ mod tests {
     }
 
     #[test]
-    fn a_client_creates_rooms_per_client_and_another_client_still_can() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        for i in 0..ROOMS_PER_CLIENT {
-            r.create(&format!("k{i}"), 1, HOME, (), "t", KEEP, t).unwrap();
-        }
-        assert_eq!(r.create("late", 1, HOME, (), "t", KEEP, t), Err(RoomError::TooMany));
-        assert_eq!(r.create("other", 2, ip("203.0.113.8"), (), "t", KEEP, t), Ok(()));
-        assert_eq!(
-            r.join("k0", 3, (), "tj", t).map(|s| s.pairing),
-            Ok(1),
-            "joining someone's room is not capped"
-        );
+    fn a_second_leave_of_a_gone_room_counts_nothing() {
+        let (mut rooms, _, _) = stats_rooms();
+        rooms.create("c", 4, HOME, (), "t4", KEEP, now()).unwrap();
+        rooms.leave("c", 4);
+
+        let left = rooms.leave("c", 4);
+
+        assert_eq!(left, None, "a second leave of a gone room counts nothing");
     }
 
     #[test]
-    fn ipv6_counts_by_the_64_and_the_48() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
-        let t = now();
-        for i in 0..ROOMS_PER_CLIENT {
-            r.create(&format!("a{i}"), 1, ip(&format!("2001:db8:1:1::{i:x}")), (), "t", KEEP, t).unwrap();
-        }
-        assert_eq!(r.create("a", 1, ip("2001:db8:1:1:ffff::1"), (), "t", KEEP, t), Err(RoomError::TooMany), "same /64");
+    fn a_client_cannot_create_more_than_its_share() {
+        let mut rooms = filled_for_one_client();
 
-        let per_network = ROOMS_PER_NETWORK / ROOMS_PER_CLIENT;
-        for subnet in 2..=per_network {
-            for i in 0..ROOMS_PER_CLIENT {
-                let address = ip(&format!("2001:db8:1:{subnet:x}::{i:x}"));
-                r.create(&format!("b{subnet}-{i}"), 1, address, (), "t", KEEP, t).unwrap();
-            }
-        }
-        assert_eq!(r.create("b", 1, ip("2001:db8:1:ffff::1"), (), "t", KEEP, t), Err(RoomError::TooMany), "same /48");
-        assert_eq!(r.create("c", 1, ip("2001:db8:2::1"), (), "t", KEEP, t), Ok(()), "next /48");
+        let created = rooms.create("late", 1, HOME, (), "t", KEEP, now());
 
-        r.leave("a0", 1);
-        assert_eq!(r.create("b", 1, ip("2001:db8:1:ffff::1"), (), "t", KEEP, t), Ok(()), "a room ended frees the /48");
+        assert_eq!(created, Err(RoomError::TooMany));
     }
 
     #[test]
-    fn every_way_a_room_ends_frees_its_count() {
-        let mut r = Rooms::new(ROOMS_PER_CLIENT);
+    fn another_client_can_still_create() {
+        let mut rooms = filled_for_one_client();
+
+        let created = rooms.create("other", 2, ip("203.0.113.8"), (), "t", KEEP, now());
+
+        assert_eq!(created, Ok(()));
+    }
+
+    #[test]
+    fn joining_someone_elses_room_is_not_capped() {
+        let mut rooms = filled_for_one_client();
         let t = now();
-        let fill = |r: &mut Rooms<&str>| {
-            for i in 1..ROOMS_PER_CLIENT {
-                // Created a second after `k`, so sweeping `k`'s wait spares them.
-                r.create(&format!("fill{i}"), 9, HOME, "f", "t", KEEP, t + Duration::from_secs(1)).unwrap();
-            }
-        };
-        fill(&mut r);
-        let cycle = |r: &mut Rooms<&str>, end: &dyn Fn(&mut Rooms<&str>)| {
-            r.create("k", 1, HOME, "a", "ta", KEEP, t).unwrap();
-            assert_eq!(r.create("x", 1, HOME, "a", "tx", KEEP, t), Err(RoomError::TooMany));
-            end(r);
-            assert_eq!(r.stats().rooms as u32, ROOMS_PER_CLIENT - 1);
+
+        let joined = rooms.join("k0", 3, (), "tj", t);
+
+        assert_eq!(joined.map(|seated| seated.pairing), Ok(1), "joining someone's room is not capped");
+    }
+
+    #[test]
+    fn ipv6_rooms_count_by_the_64() {
+        let mut rooms = filled_ipv6_subnets(1);
+
+        let created = rooms.create("a", 1, ip("2001:db8:1:1:ffff::1"), (), "t", KEEP, now());
+
+        assert_eq!(created, Err(RoomError::TooMany), "same /64");
+    }
+
+    #[test]
+    fn ipv6_rooms_count_by_the_48() {
+        let mut rooms = filled_ipv6_subnets(ROOMS_PER_NETWORK / ROOMS_PER_CLIENT);
+
+        let created = rooms.create("b", 1, ip("2001:db8:1:ffff::1"), (), "t", KEEP, now());
+
+        assert_eq!(created, Err(RoomError::TooMany), "same /48");
+    }
+
+    #[test]
+    fn the_next_48_is_not_capped() {
+        let mut rooms = filled_ipv6_subnets(ROOMS_PER_NETWORK / ROOMS_PER_CLIENT);
+
+        let created = rooms.create("c", 1, ip("2001:db8:2::1"), (), "t", KEEP, now());
+
+        assert_eq!(created, Ok(()), "next /48");
+    }
+
+    #[test]
+    fn a_room_ending_frees_the_48() {
+        let mut rooms = filled_ipv6_subnets(ROOMS_PER_NETWORK / ROOMS_PER_CLIENT);
+        rooms.leave("r1-0", 1);
+
+        let created = rooms.create("b", 1, ip("2001:db8:1:ffff::1"), (), "t", KEEP, now());
+
+        assert_eq!(created, Ok(()), "a room ended frees the /48");
+    }
+
+    #[test]
+    fn a_leave_frees_the_rooms_count() {
+        let (mut rooms, t) = ready_for_a_cycle();
+        let blocked = rooms.create("x", 1, HOME, "a", "tx", KEEP, t);
+
+        rooms.leave("k", 1);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(blocked, Err(RoomError::TooMany));
+        assert_eq!(live as u32, ROOMS_PER_CLIENT - 1);
+    }
+
+    #[test]
+    fn a_swept_wait_frees_the_rooms_count() {
+        let (mut rooms, t) = ready_for_a_cycle();
+        let blocked = rooms.create("x", 1, HOME, "a", "tx", KEEP, t);
+
+        rooms.sweep(t + WAIT, WAIT);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(blocked, Err(RoomError::TooMany));
+        assert_eq!(live as u32, ROOMS_PER_CLIENT - 1);
+    }
+
+    #[test]
+    fn an_expired_keep_alive_frees_the_rooms_count() {
+        let (mut rooms, t) = ready_for_a_cycle();
+        let blocked = rooms.create("x", 1, HOME, "a", "tx", KEEP, t);
+        rooms.join("k", 2, "b", "tb", t).unwrap();
+        let Dropped::Away { until, .. } = rooms.disconnect("k", 2, t) else {
+            panic!("not away")
         };
 
-        cycle(&mut r, &|r| {
-            r.leave("k", 1);
+        rooms.sweep(until, WAIT);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(blocked, Err(RoomError::TooMany));
+        assert_eq!(live as u32, ROOMS_PER_CLIENT - 1);
+    }
+
+    #[test]
+    fn a_joiner_leaving_frees_the_rooms_count() {
+        let (mut rooms, t) = ready_for_a_cycle();
+        let blocked = rooms.create("x", 1, HOME, "a", "tx", KEEP, t);
+        rooms.join("k", 2, "b", "tb", t).unwrap();
+
+        rooms.leave("k", 2);
+        let live = rooms.stats().rooms;
+
+        assert_eq!(blocked, Err(RoomError::TooMany));
+        assert_eq!(live as u32, ROOMS_PER_CLIENT - 1);
+    }
+
+    // The ended totals count each way of ending a room once, so only the four cycles together make them meaningful.
+    #[test]
+    fn the_ended_totals_count_each_way_a_room_ends_once() {
+        let mut rooms = Rooms::new(ROOMS_PER_CLIENT);
+        let t = now();
+        for i in 1..ROOMS_PER_CLIENT {
+            // Created a second after `k`, so sweeping `k`'s wait spares them.
+            rooms.create(&format!("fill{i}"), 9, HOME, "f", "t", KEEP, t + Duration::from_secs(1)).unwrap();
+        }
+        let cycle = |rooms: &mut Rooms<&'static str>, end: &dyn Fn(&mut Rooms<&'static str>)| {
+            rooms.create("k", 1, HOME, "a", "ta", KEEP, t).unwrap();
+            end(rooms);
+        };
+
+        cycle(&mut rooms, &|rooms| {
+            rooms.leave("k", 1);
         });
-        cycle(&mut r, &|r| {
-            r.sweep(t + WAIT, WAIT);
+        cycle(&mut rooms, &|rooms| {
+            rooms.sweep(t + WAIT, WAIT);
         });
-        cycle(&mut r, &|r| {
-            r.join("k", 2, "b", "tb", t).unwrap();
-            let Dropped::Away { until, .. } = r.disconnect("k", 2, t) else {
+        cycle(&mut rooms, &|rooms| {
+            rooms.join("k", 2, "b", "tb", t).unwrap();
+            let Dropped::Away { until, .. } = rooms.disconnect("k", 2, t) else {
                 panic!("not away")
             };
-            r.sweep(until, WAIT);
+            rooms.sweep(until, WAIT);
         });
-        cycle(&mut r, &|r| {
-            r.join("k", 2, "b", "tb", t).unwrap();
-            r.leave("k", 2);
+        cycle(&mut rooms, &|rooms| {
+            rooms.join("k", 2, "b", "tb", t).unwrap();
+            rooms.leave("k", 2);
         });
-        r.create("off", 1, HOME, "a", "ta", Duration::ZERO, t).unwrap();
-        r.disconnect("off", 1, t);
-        assert_eq!(r.stats().ended, [2, 1, 1, 1]);
-        assert_eq!(r.create("k", 1, HOME, "a", "ta", KEEP, t), Ok(()), "a closed room freed its count");
-        assert_eq!(r.held.len(), 1);
+        rooms.create("off", 1, HOME, "a", "ta", Duration::ZERO, t).unwrap();
+        rooms.disconnect("off", 1, t);
+
+        let created = rooms.create("k", 1, HOME, "a", "ta", KEEP, t);
+        let ended = rooms.stats().ended;
+        let held = rooms.held.len();
+
+        assert_eq!(ended, [2, 1, 1, 1]);
+        assert_eq!(created, Ok(()), "a closed room freed its count");
+        assert_eq!(held, 1);
     }
 }

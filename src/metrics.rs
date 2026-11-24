@@ -57,63 +57,63 @@ pub(crate) fn render(m: &Metrics, s: &Stats, discoverable: u64) -> String {
     let mut o = String::new();
     family(
         &mut o,
-        "e2ft_build_info",
+            "e2ft_build_info",
         "gauge",
         "Always 1; the version label is the running build.",
         &[(format!("{{version=\"{}\"}}", env!("CARGO_PKG_VERSION")), 1)],
     );
     family(
         &mut o,
-        "e2ft_in_use",
+            "e2ft_in_use",
         "gauge",
         "1 while at least one room exists.",
         &one((s.rooms > 0) as u64),
     );
     family(
         &mut o,
-        "e2ft_rooms",
+            "e2ft_rooms",
         "gauge",
         "Rooms in memory.",
         &one(s.rooms),
     );
     family(
         &mut o,
-        "e2ft_peers",
+            "e2ft_peers",
         "gauge",
         "Seats with a connected socket.",
         &one(s.here),
     );
     family(
         &mut o,
-        "e2ft_away_seats",
+            "e2ft_away_seats",
         "gauge",
         "Seats waiting out their keep-alive.",
         &one(s.away),
     );
     family(
         &mut o,
-        "e2ft_discoverable",
+            "e2ft_discoverable",
         "gauge",
         "Home pages visible to their network.",
         &one(discoverable),
     );
     family(
         &mut o,
-        "e2ft_rooms_created_total",
+            "e2ft_rooms_created_total",
         "counter",
         "Rooms created.",
         &one(get(&m.created)),
     );
     family(
         &mut o,
-        "e2ft_joins_total",
+            "e2ft_joins_total",
         "counter",
         "Joiner seats taken.",
         &one(get(&m.joined)),
     );
     family(
         &mut o,
-        "e2ft_rejoins_total",
+            "e2ft_rejoins_total",
         "counter",
         "Seats taken back after a drop.",
         &one(get(&m.rejoined)),
@@ -125,7 +125,7 @@ pub(crate) fn render(m: &Metrics, s: &Stats, discoverable: u64) -> String {
         .collect();
     family(
         &mut o,
-        "e2ft_errors_total",
+            "e2ft_errors_total",
         "counter",
         "Hellos refused, by error code.",
         &errors,
@@ -136,35 +136,35 @@ pub(crate) fn render(m: &Metrics, s: &Stats, discoverable: u64) -> String {
         .collect();
     family(
         &mut o,
-        "e2ft_rooms_ended_total",
+            "e2ft_rooms_ended_total",
         "counter",
         "Rooms deleted, by cause.",
         &ended,
     );
     family(
         &mut o,
-        "e2ft_relayed_frames_total",
+            "e2ft_relayed_frames_total",
         "counter",
         "Sealed frames relayed.",
         &one(get(&m.relayed_frames)),
     );
     family(
         &mut o,
-        "e2ft_relayed_bytes_total",
+            "e2ft_relayed_bytes_total",
         "counter",
         "Bytes of sealed frames relayed.",
         &one(get(&m.relayed_bytes)),
     );
     family(
         &mut o,
-        "e2ft_dropped_frames_total",
+            "e2ft_dropped_frames_total",
         "counter",
         "Frames dropped: the other peer's queue was full or closed.",
         &one(get(&m.dropped_frames)),
     );
     family(
         &mut o,
-        "e2ft_turn_withheld_total",
+            "e2ft_turn_withheld_total",
         "counter",
         "TURN credentials withheld: the client was over its budget.",
         &one(get(&m.turn_withheld)),
@@ -185,25 +185,32 @@ pub(crate) async fn metrics(State(app): State<Arc<App>>) -> Response {
 mod tests {
     use super::*;
 
+    fn busy_stats() -> Stats {
+        Stats {
+            rooms: 2,
+            here: 3,
+            away: 1,
+            ended: [5, 0, 1, 2],
+        }
+    }
+
+    #[test]
+    fn an_idle_server_renders_in_use_zero() {
+        let metrics = Metrics::default();
+
+        let text = render(&metrics, &Stats::default(), 0);
+
+        assert!(text.contains("\ne2ft_in_use 0\n"));
+    }
+
     #[test]
     fn metrics_render_every_family_and_no_room_data() {
-        let m = Metrics::default();
-        m.error("full");
-        m.error("not a code");
-        Metrics::bump(&m.relayed_bytes, 4096);
-        let idle = render(&m, &Stats::default(), 0);
-        assert!(idle.contains("\ne2ft_in_use 0\n"));
-        let busy = render(
-            &m,
-            &Stats {
-                rooms: 2,
-                here: 3,
-                away: 1,
-                ended: [5, 0, 1, 2],
-            },
-            4,
-        );
-        for line in [
+        let metrics = Metrics::default();
+        metrics.error("full");
+        metrics.error("not a code");
+        Metrics::bump(&metrics.relayed_bytes, 4096);
+        let build_info = format!("e2ft_build_info{{version=\"{}\"}} 1", env!("CARGO_PKG_VERSION"));
+        let wanted = [
             "e2ft_in_use 1",
             "e2ft_rooms 2",
             "e2ft_peers 3",
@@ -218,23 +225,18 @@ mod tests {
             "e2ft_turn_withheld_total 0",
             "# TYPE e2ft_rooms_created_total counter",
             "# TYPE e2ft_peers gauge",
-        ] {
-            assert!(
-                busy.lines().any(|l| l == line),
-                "missing {line:?} in\n{busy}"
-            );
-        }
-        let families = busy.lines().filter(|l| l.starts_with("# TYPE ")).count();
+            build_info.as_str(),
+        ];
+
+        let text = render(&metrics, &busy_stats(), 4);
+        let missing: Vec<&str> =
+            wanted.into_iter().filter(|line| !text.lines().any(|rendered| rendered == *line)).collect();
+        let families = text.lines().filter(|line| line.starts_with("# TYPE ")).count();
+        let foreign: Vec<&str> =
+            text.lines().filter(|line| !line.starts_with('#') && !line.starts_with("e2ft_")).collect();
+
+        assert_eq!(missing, Vec::<&str>::new(), "missing lines in\n{text}");
         assert_eq!(families, 15);
-        assert!(busy.lines().any(|l| l
-            == format!(
-                "e2ft_build_info{{version=\"{}\"}} 1",
-                env!("CARGO_PKG_VERSION")
-            )));
-        assert!(
-            busy.lines()
-                .filter(|l| !l.starts_with('#'))
-                .all(|l| l.starts_with("e2ft_"))
-        );
+        assert_eq!(foreign, Vec::<&str>::new(), "every sample is an e2ft_ metric");
     }
 }

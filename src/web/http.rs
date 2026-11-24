@@ -123,27 +123,62 @@ mod tests {
     use super::*;
     use crate::web::assets::tests::sample;
 
+    fn app_assets() -> Assets {
+        Assets::load(None, &crate::settings::Settings::default()).unwrap()
+    }
+
     #[test]
-    fn only_the_current_content_hash_is_stamped() {
-        let assets = Assets::load(None, &crate::settings::Settings::default()).unwrap();
+    fn the_current_content_hash_is_stamped() {
+        let assets = app_assets();
         let stamp = assets.get("app.js").unwrap().stamp();
 
-        assert!(stamped(&assets, "app.js", Some(&format!("v={stamp}"))));
-        assert!(!stamped(&assets, "app.js", Some("v=000000000000")));
-        assert!(!stamped(
-            &assets,
-            "app.js",
-            Some(&format!("v={}", &stamp[..8]))
-        ));
-        assert!(!stamped(&assets, "app.js", None));
-        assert!(!stamped(&assets, "missing.js", Some(&format!("v={stamp}"))));
+        let matched = stamped(&assets, "app.js", Some(&format!("v={stamp}")));
+
+        assert!(matched);
+    }
+
+    #[test]
+    fn another_content_hash_is_not_stamped() {
+        let assets = app_assets();
+
+        let matched = stamped(&assets, "app.js", Some("v=000000000000"));
+
+        assert!(!matched);
+    }
+
+    #[test]
+    fn a_short_content_hash_is_not_stamped() {
+        let assets = app_assets();
+        let stamp = assets.get("app.js").unwrap().stamp();
+
+        let matched = stamped(&assets, "app.js", Some(&format!("v={}", &stamp[..8])));
+
+        assert!(!matched);
+    }
+
+    #[test]
+    fn a_url_without_a_hash_is_not_stamped() {
+        let assets = app_assets();
+
+        let matched = stamped(&assets, "app.js", None);
+
+        assert!(!matched);
+    }
+
+    #[test]
+    fn a_missing_file_is_not_stamped() {
+        let assets = app_assets();
+        let stamp = assets.get("app.js").unwrap().stamp();
+
+        let matched = stamped(&assets, "missing.js", Some(&format!("v={stamp}")));
+
+        assert!(!matched);
     }
 
     #[tokio::test]
     async fn legal_pages_serve_the_right_language() {
         let assets = Assets::load(Some(&sample()), &crate::settings::Settings::default()).unwrap();
-
-        for (uri, page, file, lang) in [
+        let cases = [
             ("/terms", "terms", "terms.html", "en"),
             ("/terms?lang=ru", "terms", "terms.ru.html", "ru"),
             ("/privacy", "privacy", "privacy.html", "en"),
@@ -153,13 +188,22 @@ mod tests {
             ("/terms?x=1&lang=ru", "terms", "terms.ru.html", "ru"),
             ("/terms?lang=../index", "terms", "terms.html", "en"),
             ("/terms?lang=RU", "terms", "terms.html", "en"),
-        ] {
+        ];
+
+        let mut served = Vec::new();
+        for (uri, page, file, lang) in cases {
             let res = legal(&assets, Uri::from_static(uri), page);
-            assert_eq!(res.status(), StatusCode::OK, "{uri}");
-            assert_eq!(res.headers()[header::CONTENT_TYPE], "text/html", "{uri}");
+            let status = res.status();
+            let content_type = res.headers()[header::CONTENT_TYPE].to_str().unwrap().to_owned();
             let body = axum::body::to_bytes(res.into_body(), usize::MAX)
                 .await
                 .unwrap();
+            served.push((uri, file, lang, status, content_type, body));
+        }
+
+        for (uri, file, lang, status, content_type, body) in served {
+            assert_eq!(status, StatusCode::OK, "{uri}");
+            assert_eq!(content_type, "text/html", "{uri}");
             let text = std::str::from_utf8(&body).unwrap();
             assert!(text.contains(&format!("<html lang=\"{lang}\">")), "{uri}");
             assert_eq!(

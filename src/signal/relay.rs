@@ -410,15 +410,59 @@ async fn peer(socket: WebSocket, app: Arc<App>, address: IpAddr) {
 mod tests {
     use super::*;
 
+    fn access_len() -> usize {
+        crate::settings::Settings::default().access_len
+    }
+
+    fn room_key() -> String {
+        "Vq3k_9Za".repeat(2)[..access_len()].to_owned()
+    }
+
     #[test]
-    fn hello_keys_have_fixed_lengths() {
-        let access_len = crate::settings::Settings::default().access_len;
-        let room = "Vq3k_9Za".repeat(2)[..access_len].to_owned();
-        assert!(valid_room(&room, access_len));
-        assert!(!valid_room(&format!("{room}V"), access_len));
-        assert!(!valid_room(&format!("{}*", &room[1..]), access_len));
-        assert!(valid_token("Vq3k_9ZaVq3k_9ZaVq3k-9"));
-        assert!(!valid_token("Vq3k_9Za"));
-        assert!(!valid_token("Vq3k_9ZaVq3k_9ZaVq3k/9"));
+    fn a_room_key_of_the_access_length_is_valid() {
+        let room = room_key();
+
+        let valid = valid_room(&room, access_len());
+
+        assert!(valid);
+    }
+
+    #[test]
+    fn a_room_key_one_byte_too_long_is_invalid() {
+        let longer = format!("{}V", room_key());
+
+        let valid = valid_room(&longer, access_len());
+
+        assert!(!valid);
+    }
+
+    #[test]
+    fn a_room_key_with_a_non_key_character_is_invalid() {
+        let starred = format!("{}*", &room_key()[1..]);
+
+        let valid = valid_room(&starred, access_len());
+
+        assert!(!valid);
+    }
+
+    #[test]
+    fn a_token_of_the_expected_length_is_valid() {
+        let valid = valid_token("Vq3k_9ZaVq3k_9ZaVq3k-9");
+
+        assert!(valid);
+    }
+
+    #[test]
+    fn a_short_token_is_invalid() {
+        let valid = valid_token("Vq3k_9Za");
+
+        assert!(!valid);
+    }
+
+    #[test]
+    fn a_token_with_a_slash_is_invalid() {
+        let valid = valid_token("Vq3k_9ZaVq3k_9ZaVq3k/9");
+
+        assert!(!valid);
     }
 }

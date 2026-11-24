@@ -303,14 +303,15 @@ pub(crate) mod tests {
 
     #[test]
     fn without_a_folder_the_defaults_stay_and_the_markers_go() {
+        let version = env!("CARGO_PKG_VERSION");
+        let link = format!("<a class=\"ui-muted\" href=\"https://github.com/wbydc/e2ft/blob/v{version}/CHANGELOG.md\"");
+
         let assets = Assets::load(None, &Settings::default()).unwrap();
         let html = page(&assets);
 
         assert!(!html.contains("<!-- slot:") && !html.contains("<!-- /slot:"));
         assert!(html.contains("<span class=\"brand\">e2ft</span>"));
-        assert!(!html.contains("__VERSION__") && html.contains(env!("CARGO_PKG_VERSION")));
-        let version = env!("CARGO_PKG_VERSION");
-        let link = format!("<a class=\"ui-muted\" href=\"https://github.com/wbydc/e2ft/blob/v{version}/CHANGELOG.md\"");
+        assert!(!html.contains("__VERSION__") && html.contains(version));
         assert!(html.contains(&link), "the version links to its changelog");
         assert!(!assets.has_legal());
     }
@@ -318,13 +319,14 @@ pub(crate) mod tests {
     #[test]
     fn the_page_carries_the_servers_settings() {
         let settings = Settings::parse(|name| (name == "CHUNK_SIZE").then(|| "131072".to_owned())).unwrap();
+
         let assets = Assets::load(None, &settings).unwrap();
         let html = page(&assets);
-
         let open = "<script type=\"application/json\" id=\"config\">";
         let start = html.find(open).expect("the config block") + open.len();
         let end = start + html[start..].find("</script>").unwrap();
         let json: serde_json::Value = serde_json::from_str(&html[start..end]).unwrap();
+
         assert_eq!(json, serde_json::to_value(&settings).unwrap());
         assert_eq!(json["CHUNK_SIZE"], 131_072);
         assert!(!html.contains("__SETTINGS__"));
@@ -333,17 +335,17 @@ pub(crate) mod tests {
     #[test]
     fn the_folder_overrides_files_and_stamps_follow_the_new_bytes() {
         let neutral = Assets::load(None, &Settings::default()).unwrap();
+        let file = std::fs::read(sample().join("public/ui/favicon.svg")).unwrap();
+
         let branded = Assets::load(Some(&sample()), &Settings::default()).unwrap();
         let favicon = branded.get("ui/favicon.svg").unwrap();
+        let html = page(&branded);
 
-        assert_eq!(
-            favicon.bytes.as_ref(),
-            std::fs::read(sample().join("public/ui/favicon.svg")).unwrap()
-        );
+        assert_eq!(favicon.bytes.as_ref(), file);
         assert_ne!(favicon.hash, neutral.get("ui/favicon.svg").unwrap().hash);
         assert_eq!(favicon.mime, "image/svg+xml");
-        assert!(page(&branded).contains(&format!("/ui/favicon.svg?v={}\"", favicon.stamp())));
-        assert!(page(&branded).contains("data-legal=\"terms\""));
+        assert!(html.contains(&format!("/ui/favicon.svg?v={}\"", favicon.stamp())));
+        assert!(html.contains("data-legal=\"terms\""));
         assert!(branded.has_legal());
     }
 
@@ -351,73 +353,110 @@ pub(crate) mod tests {
     fn stamps_cover_index_and_the_lazy_imports() {
         let assets = Assets::load(None, &Settings::default()).unwrap();
         let app = std::str::from_utf8(&assets.get("app.js").unwrap().bytes).unwrap();
+        let names = ["jsqr.js", "ristretto.js"];
 
-        for name in ["jsqr.js", "ristretto.js"] {
-            assert!(app.contains(&format!(
-                "\"/{name}?v={}\"",
-                assets.get(name).unwrap().stamp()
-            )));
-        }
-        assert!(page(&assets).contains(&format!(
+        let stamped: Vec<bool> = names
+            .iter()
+            .map(|name| app.contains(&format!("\"/{name}?v={}\"", assets.get(name).unwrap().stamp())))
+            .collect();
+        let page_stamped = page(&assets).contains(&format!(
             "src=\"/app.js?v={}\"",
             assets.get("app.js").unwrap().stamp()
-        )));
-        assert_eq!(
-            assets.get("app.js").unwrap().hash,
-            <[u8; 32]>::from(Sha256::digest(app.as_bytes()))
-        );
+        ));
+        let hash = assets.get("app.js").unwrap().hash;
+
+        assert_eq!(stamped, [true, true], "{names:?}");
+        assert!(page_stamped);
+        assert_eq!(hash, <[u8; 32]>::from(Sha256::digest(app.as_bytes())));
+    }
+
+    fn one_css() -> HashMap<String, Asset> {
+        HashMap::from([(
+            "a.css".to_owned(),
+            Asset::new(Bytes::from_static(b"a"), "text/css".into()),
+        )])
     }
 
     #[test]
-    fn only_local_files_get_stamped() {
-        let files = HashMap::from([(
-            "a.css".to_owned(),
-            Asset::new(Bytes::from_static(b"a"), "text/css".into()),
-        )]);
+    fn a_local_file_url_is_stamped() {
+        let files = one_css();
         let stamp = files["a.css"].stamp();
 
-        assert_eq!(
-            stamp_urls(r#"<link href="/a.css">"#, &files),
-            format!(r#"<link href="/a.css?v={stamp}">"#)
-        );
-        assert_eq!(
-            stamp_urls(r#"<img data-src="/a.css">"#, &files),
-            format!(r#"<img data-src="/a.css?v={stamp}">"#)
-        );
-        for kept in [
+        let stamped = stamp_urls(r#"<link href="/a.css">"#, &files);
+
+        assert_eq!(stamped, format!(r#"<link href="/a.css?v={stamp}">"#));
+    }
+
+    #[test]
+    fn a_local_file_url_in_a_data_attribute_is_stamped() {
+        let files = one_css();
+        let stamp = files["a.css"].stamp();
+
+        let stamped = stamp_urls(r#"<img data-src="/a.css">"#, &files);
+
+        assert_eq!(stamped, format!(r#"<img data-src="/a.css?v={stamp}">"#));
+    }
+
+    #[test]
+    fn other_urls_are_kept() {
+        let files = one_css();
+        let kept = [
             r#"<a href="/a.css?x=1">"#,
             r#"<a href="/b.css">"#,
             r#"<a xhref="/a.css">"#,
             r#"<a href="/">"#,
-        ] {
-            assert_eq!(stamp_urls(kept, &files), kept);
-        }
+        ];
+
+        let stamped: Vec<String> = kept.iter().map(|html| stamp_urls(html, &files)).collect();
+
+        assert_eq!(stamped, kept);
     }
 
     #[test]
-    fn bad_folders_stop_startup() {
-        assert!(
-            Assets::load(Some(Path::new("/nonexistent-e2ft-assets")), &Settings::default())
-                .err()
-                .unwrap()
-                .contains("ASSETS_DIR")
-        );
+    fn a_missing_assets_folder_stops_startup() {
+        let error = Assets::load(Some(Path::new("/nonexistent-e2ft-assets")), &Settings::default())
+            .err()
+            .unwrap();
 
+        assert!(error.contains("ASSETS_DIR"));
+    }
+
+    #[test]
+    fn a_slot_that_is_not_in_the_page_stops_startup() {
         let dir = scratch("unknown");
         std::fs::write(dir.join("slots/unknown.html"), "x").unwrap();
-        assert_eq!(
-            Assets::load(Some(&dir), &Settings::default()).err().unwrap(),
-            "slots not in index.html: unknown"
-        );
-        std::fs::remove_dir_all(dir).unwrap();
 
+        let error = Assets::load(Some(&dir), &Settings::default()).err().unwrap();
+
+        assert_eq!(error, "slots not in index.html: unknown");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn an_unclosed_slot_marker_is_an_error() {
         let slots = HashMap::new();
-        assert!(fill_slots("<!-- slot:a -->x", &slots).is_err());
-        assert!(fill_slots("x<!-- /slot:a -->", &slots).is_err());
-        assert_eq!(
-            fill_slots("<!-- slot:a --> x <!-- /slot:a -->!", &slots).unwrap(),
-            "x!"
-        );
+
+        let filled = fill_slots("<!-- slot:a -->x", &slots);
+
+        assert!(filled.is_err());
+    }
+
+    #[test]
+    fn a_stray_close_slot_marker_is_an_error() {
+        let slots = HashMap::new();
+
+        let filled = fill_slots("x<!-- /slot:a -->", &slots);
+
+        assert!(filled.is_err());
+    }
+
+    #[test]
+    fn a_slot_is_filled_and_its_markers_removed() {
+        let slots = HashMap::new();
+
+        let filled = fill_slots("<!-- slot:a --> x <!-- /slot:a -->!", &slots);
+
+        assert_eq!(filled.unwrap(), "x!");
     }
 
     #[cfg(unix)]
@@ -429,6 +468,7 @@ pub(crate) mod tests {
         std::fs::write(dir.join("public/.hidden"), "x").unwrap();
         std::os::unix::fs::symlink(dir.join("..2026_11_09"), dir.join("..data")).unwrap();
         std::os::unix::fs::symlink(dir.join("..data/public/ui"), dir.join("public/ui")).unwrap();
+
         let assets = Assets::load(Some(&dir), &Settings::default()).unwrap();
 
         assert_eq!(

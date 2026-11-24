@@ -277,22 +277,52 @@ fn turn(server: &Turn, secret: &[u8], deadline: Instant) -> Result<(), Failure> 
 mod tests {
     use super::*;
 
-    #[test]
-    fn unspecified_addresses_map_to_loopback() {
-        let addr = |text: &str| text.parse::<SocketAddr>().unwrap();
-        assert_eq!(local(addr("0.0.0.0:8080")), addr("127.0.0.1:8080"));
-        assert_eq!(local(addr("[::]:8080")), addr("[::1]:8080"));
-        assert_eq!(local(addr("10.0.0.5:80")), addr("10.0.0.5:80"));
+    fn addr(text: &str) -> SocketAddr {
+        text.parse().unwrap()
     }
 
     #[test]
-    fn only_a_200_status_line_passes() {
-        assert!(is_ok("HTTP/1.1 200 OK\r\n"));
-        assert!(is_ok("HTTP/1.0 200 OK\r\n"));
-        assert!(!is_ok("HTTP/1.1 503 Service Unavailable\r\n"));
-        assert!(!is_ok("HTTP/1.1 2000\r\n"));
-        assert!(!is_ok("SSH-2.0-OpenSSH 200\r\n"));
-        assert!(!is_ok(""));
+    fn an_unspecified_ipv4_address_maps_to_loopback() {
+        let mapped = local(addr("0.0.0.0:8080"));
+
+        assert_eq!(mapped, addr("127.0.0.1:8080"));
+    }
+
+    #[test]
+    fn an_unspecified_ipv6_address_maps_to_loopback() {
+        let mapped = local(addr("[::]:8080"));
+
+        assert_eq!(mapped, addr("[::1]:8080"));
+    }
+
+    #[test]
+    fn a_specified_address_is_kept() {
+        let mapped = local(addr("10.0.0.5:80"));
+
+        assert_eq!(mapped, addr("10.0.0.5:80"));
+    }
+
+    #[test]
+    fn a_200_status_line_passes() {
+        let lines = ["HTTP/1.1 200 OK\r\n", "HTTP/1.0 200 OK\r\n"];
+
+        let results: Vec<bool> = lines.iter().map(|line| is_ok(line)).collect();
+
+        assert_eq!(results, [true, true], "{lines:?}");
+    }
+
+    #[test]
+    fn a_reply_without_a_200_status_line_fails() {
+        let lines = [
+            "HTTP/1.1 503 Service Unavailable\r\n",
+            "HTTP/1.1 2000\r\n",
+            "SSH-2.0-OpenSSH 200\r\n",
+            "",
+        ];
+
+        let results: Vec<bool> = lines.iter().map(|line| is_ok(line)).collect();
+
+        assert_eq!(results, [false; 4], "{lines:?}");
     }
 
     fn turn_url(url: &str) -> Option<(String, u16, bool)> {
@@ -300,16 +330,36 @@ mod tests {
     }
 
     #[test]
-    fn parses_turn_urls() {
-        assert_eq!(turn_url("turn:relay.example:3478?transport=udp"), Some(("relay.example".into(), 3478, false)));
-        assert_eq!(turn_url("turn:relay.example?transport=tcp"), Some(("relay.example".into(), 3478, true)));
-        assert_eq!(turn_url("turn:203.0.113.7:5349"), Some(("203.0.113.7".into(), 5349, false)));
-        assert_eq!(turn_url("turn:[2001:db8::1]:3479?transport=tcp"), Some(("2001:db8::1".into(), 3479, true)));
-        assert_eq!(turn_url("turn:[2001:db8::1]"), Some(("2001:db8::1".into(), 3478, false)));
-        assert_eq!(turn_url("turns:relay.example"), None);
-        assert_eq!(turn_url("turn:relay.example:http"), None);
-        assert_eq!(turn_url("turn:relay.example?transport=sctp"), None);
-        assert_eq!(turn_url("turn::3478"), None);
+    fn turn_urls_with_a_host_port_and_transport_parse() {
+        let urls = [
+            "turn:relay.example:3478?transport=udp",
+            "turn:relay.example?transport=tcp",
+            "turn:203.0.113.7:5349",
+            "turn:[2001:db8::1]:3479?transport=tcp",
+            "turn:[2001:db8::1]",
+        ];
+
+        let parsed: Vec<Option<(String, u16, bool)>> = urls.iter().map(|url| turn_url(url)).collect();
+
+        assert_eq!(parsed[0], Some(("relay.example".into(), 3478, false)));
+        assert_eq!(parsed[1], Some(("relay.example".into(), 3478, true)));
+        assert_eq!(parsed[2], Some(("203.0.113.7".into(), 5349, false)));
+        assert_eq!(parsed[3], Some(("2001:db8::1".into(), 3479, true)));
+        assert_eq!(parsed[4], Some(("2001:db8::1".into(), 3478, false)));
+    }
+
+    #[test]
+    fn a_turn_url_that_is_not_a_plain_turn_url_does_not_parse() {
+        let urls = [
+            "turns:relay.example",
+            "turn:relay.example:http",
+            "turn:relay.example?transport=sctp",
+            "turn::3478",
+        ];
+
+        let parsed: Vec<Option<(String, u16, bool)>> = urls.iter().map(|url| turn_url(url)).collect();
+
+        assert_eq!(parsed, [None, None, None, None], "{urls:?}");
     }
 
     fn soon() -> Instant {
@@ -317,16 +367,25 @@ mod tests {
     }
 
     #[test]
-    fn nothing_listening_fails_fast() {
+    fn an_http_probe_of_a_closed_port_fails_within_the_budget() {
         let closed = TcpStream::connect("127.0.0.1:1").map(|_| ()).err();
-        assert!(closed.is_some(), "port 1 is closed on this machine");
         let start = Instant::now();
-        assert!(http("127.0.0.1:1".parse().unwrap(), start + HTTP_BUDGET).is_err());
-        assert!(start.elapsed() < HTTP_BUDGET);
 
+        let result = http("127.0.0.1:1".parse().unwrap(), start + HTTP_BUDGET);
+        let elapsed = start.elapsed();
+
+        assert!(closed.is_some(), "port 1 is closed on this machine");
+        assert!(result.is_err());
+        assert!(elapsed < HTTP_BUDGET);
+    }
+
+    #[test]
+    fn a_turn_allocation_to_a_closed_port_reports_the_binding_failure() {
         let server = Turn::parse("turn:127.0.0.1:1").unwrap();
+
         let failure = turn(&server, b"secret", soon()).unwrap_err();
         let binding = matches!(&failure, Failure::Turn(message) if message.starts_with("turn:127.0.0.1:1: binding:"));
+
         assert!(binding, "{failure:?}");
         assert_eq!(failure.code(), 3);
     }
@@ -340,10 +399,14 @@ mod tests {
         std::env::var("E2E_TURN_SECRET").unwrap_or_else(|_| "e2e-loopback-turn-secret-0123456789".into())
     }
 
+    // The rounds only mean something as a sequence: each allocation must be free again for the next round, or the
+    // coturn's relay ports would run out partway through.
     #[test]
     #[ignore = "needs web/scripts/coturn.sh start"]
     fn allocates_and_frees_on_a_coturn_sharing_the_secret() {
         let secret = loopback_secret();
+
+        // One scenario: only back-to-back rounds prove the coturn frees each allocation before its ports run out.
         for transport in ["udp", "tcp"] {
             let server = Turn::parse(&format!("{LOOPBACK}?transport={transport}")).unwrap();
             // Two rounds of as many checks as the coturn has relay ports. It frees a zero-lifetime allocation on its
@@ -364,6 +427,7 @@ mod tests {
         let server = Turn::parse(LOOPBACK).unwrap();
         let failure = turn(&server, b"not-the-secret-coturn-was-given-0123", soon()).unwrap_err();
         let message = format!("{LOOPBACK}: credential rejected: TURN_SECRET differs from coturn's");
+
         assert_eq!(failure, Failure::Secret(message));
         assert_eq!(failure.code(), 4);
     }

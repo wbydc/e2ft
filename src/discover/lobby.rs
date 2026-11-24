@@ -250,28 +250,106 @@ mod tests {
         Device::new(label, label).expect("device")
     }
 
-    #[test]
-    fn one_ipv4_address_gives_one_network() {
-        assert!(network("8.8.8.8") == network("8.8.8.8"), "same address");
-        assert!(network("8.8.8.8") != network("8.8.4.4"), "different address");
-        let address: IpAddr = "8.8.8.8".parse().unwrap();
-        let other_key = [8; 32];
-        assert!(
-            Network::new(&KEY, address, true).unwrap() != Network::new(&other_key, address, true).unwrap(),
-            "a different key gives a different network"
-        );
+    fn three_members() -> (Lobby<&'static str>, Network, Network) {
+        let mut lobby = Lobby::new();
+        let home = network("8.8.8.8");
+        let elsewhere = network("1.1.1.1");
+        lobby.enter(&home, 2, device("phone"), "tx-2").unwrap();
+        lobby.enter(&home, 1, device("laptop"), "tx-1").unwrap();
+        lobby.enter(&elsewhere, 3, device("tablet"), "tx-3").unwrap();
+
+        (lobby, home, elsewhere)
+    }
+
+    fn three_in_home() -> (Lobby<&'static str>, Network) {
+        let mut lobby = Lobby::new();
+        let home = network("8.8.8.8");
+        for (id, tx) in [(1, "tx-1"), (2, "tx-2"), (3, "tx-3")] {
+            lobby.enter(&home, id, device("phone"), tx).unwrap();
+        }
+
+        (lobby, home)
+    }
+
+    fn renamed() -> (Lobby<&'static str>, Network) {
+        let mut lobby = Lobby::new();
+        let home = network("8.8.8.8");
+        lobby.enter(&home, 1, device("phone"), "tx-1").unwrap();
+        lobby.enter(&home, 2, device("laptop"), "tx-2").unwrap();
+        lobby.enter(&home, 1, device("new phone"), "tx-1b").unwrap();
+
+        (lobby, home)
+    }
+
+    fn two_members() -> (Lobby<()>, Network, Network) {
+        let mut lobby = Lobby::new();
+        let home = network("8.8.8.8");
+        let elsewhere = network("1.1.1.1");
+        lobby.enter(&home, 1, device("phone"), ()).unwrap();
+        lobby.enter(&home, 2, device("laptop"), ()).unwrap();
+
+        (lobby, home, elsewhere)
+    }
+
+    fn full_group() -> (Lobby<()>, Network) {
+        let mut lobby = Lobby::new();
+        let home = network("8.8.8.8");
+        for id in 0..GROUP_MAX as LobbyId {
+            lobby.enter(&home, id, device("phone"), ()).unwrap();
+        }
+
+        (lobby, home)
     }
 
     #[test]
-    fn ipv6_groups_by_64_and_a_mapped_address_matches_its_ipv4() {
-        assert!(network("2606:4700:4700::1") == network("2606:4700:4700::2222"), "one /64");
-        assert!(network("2606:4700:4700::1") != network("2606:4700:4701::1"), "other /64");
-        assert!(network("::ffff:8.8.8.8") == network("8.8.8.8"), "mapped is IPv4");
+    fn the_same_address_gives_the_same_network() {
+        let same = network("8.8.8.8") == network("8.8.8.8");
+
+        assert!(same, "same address");
+    }
+
+    #[test]
+    fn a_different_address_gives_a_different_network() {
+        let different = network("8.8.8.8") != network("8.8.4.4");
+
+        assert!(different, "different address");
+    }
+
+    #[test]
+    fn a_different_key_gives_a_different_network() {
+        let address: IpAddr = "8.8.8.8".parse().unwrap();
+        let other_key = [8; 32];
+
+        let same = Network::new(&KEY, address, true).unwrap();
+        let other = Network::new(&other_key, address, true).unwrap();
+
+        assert!(same != other, "a different key gives a different network");
+    }
+
+    #[test]
+    fn ipv6_addresses_in_one_64_group_together() {
+        let same = network("2606:4700:4700::1") == network("2606:4700:4700::2222");
+
+        assert!(same, "one /64");
+    }
+
+    #[test]
+    fn ipv6_addresses_in_different_64s_do_not_group() {
+        let different = network("2606:4700:4700::1") != network("2606:4700:4701::1");
+
+        assert!(different, "other /64");
+    }
+
+    #[test]
+    fn a_mapped_ipv6_address_is_its_ipv4() {
+        let mapped = network("::ffff:8.8.8.8") == network("8.8.8.8");
+
+        assert!(mapped, "mapped is IPv4");
     }
 
     #[test]
     fn non_public_addresses_never_form_a_group() {
-        for address in [
+        let addresses = [
             "10.244.3.7",
             "10.0.0.1",
             "192.168.1.2",
@@ -286,138 +364,374 @@ mod tests {
             "203.0.113.1",
             "fc00::1",
             "fe80::1",
-        ] {
-            let address: IpAddr = address.parse().expect("address");
-            assert!(Network::new(&KEY, address, true).is_none(), "{address} direct");
-            assert!(Network::new(&KEY, address, false).is_none(), "{address} from a header");
-        }
+        ];
+
+        let created: Vec<(IpAddr, Option<Network>, Option<Network>)> = addresses
+            .iter()
+            .map(|text| {
+                let address: IpAddr = text.parse().expect("address");
+                (address, Network::new(&KEY, address, true), Network::new(&KEY, address, false))
+            })
+            .collect();
+        let direct: Vec<IpAddr> = created.iter().filter(|(_, direct, _)| direct.is_some()).map(|row| row.0).collect();
+        let header: Vec<IpAddr> = created.iter().filter(|(_, _, header)| header.is_some()).map(|row| row.0).collect();
+
+        assert_eq!(direct, Vec::<IpAddr>::new(), "formed a group direct");
+        assert_eq!(header, Vec::<IpAddr>::new(), "formed a group from a header");
     }
 
     #[test]
     fn loopback_forms_a_group_only_from_the_socket_address() {
-        for address in ["127.0.0.1", "::1"] {
-            let address: IpAddr = address.parse().expect("address");
-            assert!(Network::new(&KEY, address, true).is_some(), "{address} direct");
-            assert!(
-                Network::new(&KEY, address, false).is_none(),
-                "{address} from a header"
-            );
-        }
+        let addresses = ["127.0.0.1", "::1"];
+
+        let created: Vec<(IpAddr, Option<Network>, Option<Network>)> = addresses
+            .iter()
+            .map(|text| {
+                let address: IpAddr = text.parse().expect("address");
+                (address, Network::new(&KEY, address, true), Network::new(&KEY, address, false))
+            })
+            .collect();
+        let direct: Vec<IpAddr> = created.iter().filter(|(_, direct, _)| direct.is_none()).map(|row| row.0).collect();
+        let header: Vec<IpAddr> = created.iter().filter(|(_, _, header)| header.is_some()).map(|row| row.0).collect();
+
+        assert_eq!(direct, Vec::<IpAddr>::new(), "no group direct");
+        assert_eq!(header, Vec::<IpAddr>::new(), "formed a group from a header");
     }
 
     #[test]
     fn members_lists_one_group_in_enter_order() {
-        let mut lobby = Lobby::new();
-        let home = network("8.8.8.8");
-        let elsewhere = network("1.1.1.1");
-        lobby.enter(&home, 2, device("phone"), "tx-2").unwrap();
-        lobby.enter(&home, 1, device("laptop"), "tx-1").unwrap();
-        lobby.enter(&elsewhere, 3, device("tablet"), "tx-3").unwrap();
+        let (lobby, home, _) = three_members();
+
+        let members = lobby.members(&home);
+
         assert_eq!(
-            lobby.members(&home),
+            members,
             vec![(2, &device("phone"), &"tx-2"), (1, &device("laptop"), &"tx-1")]
         );
-        assert_eq!(lobby.ask(&home, 1, 3), None, "a member of another group");
-        assert_eq!(lobby.ask(&elsewhere, 3, 3), None, "itself");
-        assert_eq!(lobby.ask(&home, 1, 2), Some(&"tx-2"));
-        assert_eq!(lobby.count(), 3);
     }
 
     #[test]
-    fn an_answer_reaches_only_a_member_that_asked_and_only_once() {
-        let mut lobby = Lobby::new();
-        let home = network("8.8.8.8");
-        for (id, tx) in [(1, "tx-1"), (2, "tx-2"), (3, "tx-3")] {
-            lobby.enter(&home, id, device("phone"), tx).unwrap();
-        }
-        assert_eq!(lobby.answer(&home, 2, 1), None, "nobody asked");
-        assert_eq!(lobby.ask(&home, 1, 2), Some(&"tx-2"));
-        assert_eq!(lobby.ask(&home, 1, 2), Some(&"tx-2"), "asking again");
-        assert_eq!(lobby.answer(&home, 2, 3), None, "3 did not ask");
-        assert_eq!(lobby.answer(&home, 3, 1), None, "1 asked 2, not 3");
-        assert_eq!(lobby.answer(&home, 2, 1), Some(&"tx-1"), "a busy decline of the second ask");
-        assert_eq!(lobby.answer(&home, 2, 1), Some(&"tx-1"), "the first ask's answer still gets through");
-        assert_eq!(lobby.answer(&home, 2, 1), None, "both asks are used up");
+    fn an_ask_to_a_member_of_another_group_reaches_nobody() {
+        let (mut lobby, home, _) = three_members();
 
+        let asked = lobby.ask(&home, 1, 3);
+
+        assert_eq!(asked, None, "a member of another group");
+    }
+
+    #[test]
+    fn an_ask_to_itself_reaches_nobody() {
+        let (mut lobby, _, elsewhere) = three_members();
+
+        let asked = lobby.ask(&elsewhere, 3, 3);
+
+        assert_eq!(asked, None, "itself");
+    }
+
+    #[test]
+    fn an_ask_reaches_the_member_asked() {
+        let (mut lobby, home, _) = three_members();
+
+        let asked = lobby.ask(&home, 1, 2);
+
+        assert_eq!(asked, Some(&"tx-2"));
+    }
+
+    #[test]
+    fn count_counts_members_over_all_groups() {
+        let (lobby, _, _) = three_members();
+
+        let count = lobby.count();
+
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn an_answer_before_an_ask_reaches_nobody() {
+        let (mut lobby, home) = three_in_home();
+
+        let answer = lobby.answer(&home, 2, 1);
+
+        assert_eq!(answer, None, "nobody asked");
+    }
+
+    #[test]
+    fn an_ask_returns_the_asked_members_handle() {
+        let (mut lobby, home) = three_in_home();
+
+        let ask = lobby.ask(&home, 1, 2);
+
+        assert_eq!(ask, Some(&"tx-2"));
+    }
+
+    #[test]
+    fn asking_again_returns_the_same_handle() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 1, 2);
+
+        let ask = lobby.ask(&home, 1, 2);
+
+        assert_eq!(ask, Some(&"tx-2"), "asking again");
+    }
+
+    #[test]
+    fn an_answer_from_a_member_that_was_not_asked_reaches_nobody() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 1, 2);
+
+        let answer = lobby.answer(&home, 2, 3);
+
+        assert_eq!(answer, None, "3 did not ask");
+    }
+
+    #[test]
+    fn an_answer_to_an_asker_who_asked_someone_else_reaches_nobody() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 1, 2);
+
+        let answer = lobby.answer(&home, 3, 1);
+
+        assert_eq!(answer, None, "1 asked 2, not 3");
+    }
+
+    #[test]
+    fn a_busy_member_answers_the_second_ask() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 1, 2);
+        let _ = lobby.ask(&home, 1, 2);
+
+        let answer = lobby.answer(&home, 2, 1);
+
+        assert_eq!(answer, Some(&"tx-1"), "a busy decline of the second ask");
+    }
+
+    #[test]
+    fn the_first_asks_answer_still_gets_through() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 1, 2);
+        let _ = lobby.ask(&home, 1, 2);
+        let _ = lobby.answer(&home, 2, 1);
+
+        let answer = lobby.answer(&home, 2, 1);
+
+        assert_eq!(answer, Some(&"tx-1"), "the first ask's answer still gets through");
+    }
+
+    #[test]
+    fn both_asks_are_used_up_by_the_answers() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 1, 2);
+        let _ = lobby.ask(&home, 1, 2);
+        let _ = lobby.answer(&home, 2, 1);
+        let _ = lobby.answer(&home, 2, 1);
+
+        let answer = lobby.answer(&home, 2, 1);
+
+        assert_eq!(answer, None, "both asks are used up");
+    }
+
+    #[test]
+    fn open_asks_are_capped() {
+        let (mut lobby, home) = three_in_home();
         for _ in 0..OPEN_ASKS_MAX + 5 {
-            lobby.ask(&home, 1, 2);
+            let _ = lobby.ask(&home, 1, 2);
         }
-        let answered = (0..).take_while(|_| lobby.answer(&home, 2, 1).is_some()).count();
-        assert_eq!(answered, OPEN_ASKS_MAX, "open asks are capped");
 
-        lobby.ask(&home, 3, 2);
+        let answered = (0..).take_while(|_| lobby.answer(&home, 2, 1).is_some()).count();
+
+        assert_eq!(answered, OPEN_ASKS_MAX, "open asks are capped");
+    }
+
+    #[test]
+    fn an_ask_ends_with_its_askers_socket() {
+        let (mut lobby, home) = three_in_home();
+        let _ = lobby.ask(&home, 3, 2);
         lobby.leave(&home, 3);
         lobby.enter(&home, 3, device("phone"), "tx-3b").unwrap();
-        assert_eq!(lobby.answer(&home, 2, 3), None, "an ask ends with its asker's socket");
-        assert_eq!(lobby.ask(&home, 9, 2), None, "an asker outside the group");
+
+        let answer = lobby.answer(&home, 2, 3);
+
+        assert_eq!(answer, None, "an ask ends with its asker's socket");
     }
 
     #[test]
-    fn re_entering_an_id_renames_in_place() {
+    fn an_asker_outside_the_group_gets_no_handle() {
+        let (mut lobby, home) = three_in_home();
+
+        let ask = lobby.ask(&home, 9, 2);
+
+        assert_eq!(ask, None, "an asker outside the group");
+    }
+
+    #[test]
+    fn re_entering_an_id_replaces_its_device() {
         let mut lobby = Lobby::new();
         let home = network("8.8.8.8");
         lobby.enter(&home, 1, device("phone"), "tx-1").unwrap();
         lobby.enter(&home, 2, device("laptop"), "tx-2").unwrap();
-        assert_eq!(lobby.enter(&home, 1, device("new phone"), "tx-1b"), Ok(true));
-        assert_eq!(lobby.enter(&home, 1, device("new phone"), "tx-1b"), Ok(false), "an unchanged hello");
-        assert_eq!(lobby.count(), 2, "a rename adds nobody");
-        assert_eq!(lobby.members(&home)[0], (1, &device("new phone"), &"tx-1"));
+
+        let changed = lobby.enter(&home, 1, device("new phone"), "tx-1b");
+
+        assert_eq!(changed, Ok(true));
     }
 
     #[test]
-    fn leave_removes_the_member_and_an_emptied_group() {
-        let mut lobby = Lobby::new();
-        let home = network("8.8.8.8");
-        let elsewhere = network("1.1.1.1");
-        lobby.enter(&home, 1, device("phone"), ()).unwrap();
-        lobby.enter(&home, 2, device("laptop"), ()).unwrap();
+    fn a_hello_with_the_same_device_changes_nothing() {
+        let (mut lobby, home) = renamed();
+
+        let changed = lobby.enter(&home, 1, device("new phone"), "tx-1b");
+
+        assert_eq!(changed, Ok(false), "an unchanged hello");
+    }
+
+    #[test]
+    fn a_rename_adds_nobody() {
+        let (lobby, _) = renamed();
+
+        let count = lobby.count();
+
+        assert_eq!(count, 2, "a rename adds nobody");
+    }
+
+    #[test]
+    fn a_renamed_member_keeps_its_position() {
+        let (lobby, home) = renamed();
+
+        let members = lobby.members(&home);
+
+        assert_eq!(members[0], (1, &device("new phone"), &"tx-1"));
+    }
+
+    #[test]
+    fn a_leave_through_another_group_removes_nobody() {
+        let (mut lobby, _, elsewhere) = two_members();
+
         lobby.leave(&elsewhere, 1);
-        assert_eq!(lobby.count(), 2, "a leave through another group does nothing");
+
+        let count = lobby.count();
+
+        assert_eq!(count, 2, "a leave through another group does nothing");
+    }
+
+    #[test]
+    fn a_leave_removes_the_member() {
+        let (mut lobby, home, _) = two_members();
+
         lobby.leave(&home, 1);
-        assert_eq!(lobby.members(&home), vec![(2, &device("laptop"), &())]);
-        assert_eq!(lobby.count(), 1);
+
+        let members = lobby.members(&home);
+        let count = lobby.count();
+
+        assert_eq!(members, vec![(2, &device("laptop"), &())]);
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn an_unknown_id_leaves_everyone() {
+        let (mut lobby, home, _) = two_members();
+        lobby.leave(&home, 1);
+
         lobby.leave(&home, 9);
-        assert_eq!(lobby.count(), 1, "unknown id");
-        lobby.leave(&home, 2);
-        assert_eq!(lobby.count(), 0);
-        assert!(lobby.members(&home).is_empty(), "the emptied group is removed");
-        lobby.leave(&home, 2);
-        assert_eq!(lobby.count(), 0, "leaving twice does nothing");
+
+        let count = lobby.count();
+
+        assert_eq!(count, 1, "unknown id");
     }
 
     #[test]
-    fn a_full_group_refuses_one_more_but_still_takes_a_rename() {
-        let mut lobby = Lobby::new();
-        let home = network("8.8.8.8");
-        for id in 0..GROUP_MAX as LobbyId {
-            lobby.enter(&home, id, device("phone"), ()).unwrap();
-        }
-        assert_eq!(lobby.count(), GROUP_MAX as u64);
-        assert_eq!(
-            lobby.enter(&home, GROUP_MAX as LobbyId, device("late"), ()),
-            Err(LobbyError::Full)
-        );
-        assert_eq!(lobby.count(), GROUP_MAX as u64);
-        assert_eq!(lobby.enter(&home, 0, device("laptop"), ()), Ok(true));
-        assert_eq!(
-            lobby.members(&home)[0],
-            (0, &device("laptop"), &()),
-            "a rename in a full group"
-        );
-        assert_eq!(lobby.count(), GROUP_MAX as u64);
+    fn the_last_leave_removes_the_group() {
+        let (mut lobby, home, _) = two_members();
+        lobby.leave(&home, 1);
+
+        lobby.leave(&home, 2);
+
+        let count = lobby.count();
+        let members = lobby.members(&home);
+
+        assert_eq!(count, 0);
+        assert!(members.is_empty(), "the emptied group is removed");
     }
 
     #[test]
-    fn labels_are_trimmed_and_bounded() {
-        assert_eq!(Device::new("", "phone"), None);
-        assert_eq!(Device::new("   ", "phone"), None);
-        assert_eq!(Device::new(&"a".repeat(LABEL_MAX + 1), "phone"), None);
-        assert_eq!(Device::new("a\nb", "phone"), None);
-        assert_eq!(Device::new("phone", "a\u{7}b"), None);
-        assert!(Device::new(&"é".repeat(LABEL_MAX), "phone").is_some(), "char, not byte, count");
-        assert!(Device::new(&"a".repeat(LABEL_MAX), "phone").is_some());
+    fn leaving_twice_does_nothing() {
+        let (mut lobby, home, _) = two_members();
+        lobby.leave(&home, 1);
+        lobby.leave(&home, 2);
+
+        lobby.leave(&home, 2);
+
+        let count = lobby.count();
+
+        assert_eq!(count, 0, "leaving twice does nothing");
+    }
+
+    #[test]
+    fn a_full_group_refuses_one_more() {
+        let (mut lobby, home) = full_group();
+
+        let reserved = lobby.enter(&home, GROUP_MAX as LobbyId, device("late"), ());
+
+        let count = lobby.count();
+
+        assert_eq!(reserved, Err(LobbyError::Full));
+        assert_eq!(count, GROUP_MAX as u64);
+    }
+
+    #[test]
+    fn a_full_group_still_takes_a_rename() {
+        let (mut lobby, home) = full_group();
+
+        let renamed = lobby.enter(&home, 0, device("laptop"), ());
+
+        let members = lobby.members(&home);
+        let count = lobby.count();
+
+        assert_eq!(renamed, Ok(true));
+        assert_eq!(members[0], (0, &device("laptop"), &()), "a rename in a full group");
+        assert_eq!(count, GROUP_MAX as u64);
+    }
+
+    #[test]
+    fn a_label_must_be_present_short_and_plain() {
+        let long = "a".repeat(LABEL_MAX + 1);
+        let cases = [
+            ("", "phone"),
+            ("   ", "phone"),
+            (long.as_str(), "phone"),
+            ("a\nb", "phone"),
+            ("phone", "a\u{7}b"),
+        ];
+
+        let created: Vec<Option<Device>> =
+            cases.iter().map(|(name, device)| Device::new(name, device)).collect();
+
+        assert_eq!(created, [None, None, None, None, None], "{cases:?}");
+    }
+
+    #[test]
+    fn labels_count_chars_not_bytes() {
+        let name = "é".repeat(LABEL_MAX);
+
+        let created = Device::new(&name, "phone");
+
+        assert!(created.is_some(), "char, not byte, count");
+    }
+
+    #[test]
+    fn a_label_of_the_maximum_length_is_allowed() {
+        let name = "a".repeat(LABEL_MAX);
+
+        let created = Device::new(&name, "phone");
+
+        assert!(created.is_some());
+    }
+
+    #[test]
+    fn labels_are_trimmed() {
+        let created = Device::new("  Alice  ", " laptop ");
+
         assert_eq!(
-            Device::new("  Alice  ", " laptop "),
+            created,
             Some(Device {
                 name: "Alice".to_owned(),
                 device: "laptop".to_owned()

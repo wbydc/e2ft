@@ -198,9 +198,10 @@ mod tests {
             ),
             (&[("WINDOW", "16")], "ACK_EVERY: 32, expected at most WINDOW (16)"),
         ];
+        let expected: Vec<&str> = cases.iter().map(|(_, message)| *message).collect();
 
-        for (pairs, message) in cases {
-            assert_eq!(parse(pairs).unwrap_err(), *message, "{pairs:?}");
-        }
+        let errors: Vec<String> = cases.iter().map(|(pairs, _)| parse(pairs).unwrap_err()).collect();
+
+        assert_eq!(errors, expected);
     }
 }

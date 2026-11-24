@@ -286,25 +286,61 @@ mod tests {
     }
 
     #[test]
-    fn blocks_match_their_own_family_and_prefix() {
+    fn an_ipv4_block_matches_its_prefix_and_a_mapped_address() {
         let block = Cidr::parse("10.244.0.0/16").unwrap();
-        assert!(block.contains(address("10.244.3.7")));
-        assert!(block.contains(address("::ffff:10.244.3.7")), "a mapped address is its IPv4 form");
-        assert!(!block.contains(address("10.245.0.1")));
-        assert!(!block.contains(address("::1")));
-        assert!(Cidr::parse("0.0.0.0/0").unwrap().contains(address("8.8.8.8")));
-        assert!(Cidr::parse("2400:cb00::/32").unwrap().contains(address("2400:cb00:1::5")));
-        assert!(!Cidr::parse("2400:cb00::/32").unwrap().contains(address("2400:cb01::5")));
-        for bad in ["", "10.0.0.0/33", "::/129", "10.0.0.0/x", "proxy"] {
-            assert!(Cidr::parse(bad).is_none(), "{bad}");
-        }
+
+        let inside = block.contains(address("10.244.3.7"));
+        let mapped = block.contains(address("::ffff:10.244.3.7"));
+        let outside = block.contains(address("10.245.0.1"));
+        let other_family = block.contains(address("::1"));
+
+        assert!(inside);
+        assert!(mapped, "a mapped address is its IPv4 form");
+        assert!(!outside);
+        assert!(!other_family);
+    }
+
+    #[test]
+    fn a_zero_prefix_matches_every_address() {
+        let block = Cidr::parse("0.0.0.0/0").unwrap();
+
+        let inside = block.contains(address("8.8.8.8"));
+
+        assert!(inside);
+    }
+
+    #[test]
+    fn an_ipv6_block_matches_only_its_prefix() {
+        let block = Cidr::parse("2400:cb00::/32").unwrap();
+
+        let inside = block.contains(address("2400:cb00:1::5"));
+        let outside = block.contains(address("2400:cb01::5"));
+
+        assert!(inside);
+        assert!(!outside);
+    }
+
+    #[test]
+    fn malformed_cidr_blocks_do_not_parse() {
+        let blocks = ["", "10.0.0.0/33", "::/129", "10.0.0.0/x", "proxy"];
+
+        let parsed: Vec<&str> = blocks.into_iter().filter(|block| Cidr::parse(block).is_some()).collect();
+
+        assert_eq!(parsed, Vec::<&str>::new(), "these blocks parsed");
     }
 
     #[test]
     fn an_untrusted_peer_is_the_client_whatever_it_claims() {
         let client = client_address(address("203.0.113.9"), "8.8.8.8", &trusted());
+
         assert_eq!(client, Some((address("203.0.113.9"), true)));
-        assert_eq!(client_address(address("8.8.4.4"), "", &[]), Some((address("8.8.4.4"), true)));
+    }
+
+    #[test]
+    fn with_no_trusted_proxies_the_peer_is_the_client() {
+        let client = client_address(address("8.8.4.4"), "", &[]);
+
+        assert_eq!(client, Some((address("8.8.4.4"), true)));
     }
 
     #[test]
@@ -312,17 +348,46 @@ mod tests {
         let peer = address("10.244.0.24");
         // The client sent a forged entry; the outer proxy appended the real one, the inner proxy appended the outer one.
         let chain = "8.8.8.8, 198.51.100.7, 173.245.48.9";
-        assert_eq!(client_address(peer, chain, &trusted()), Some((address("198.51.100.7"), false)));
-        assert_eq!(client_address(peer, "2001:db8::1", &trusted()), Some((address("2001:db8::1"), false)));
+
+        let client = client_address(peer, chain, &trusted());
+
+        assert_eq!(client, Some((address("198.51.100.7"), false)));
     }
 
     #[test]
-    fn a_chain_with_no_client_or_with_junk_names_nobody() {
+    fn a_single_ipv6_header_entry_is_the_client() {
+        let peer = address("10.244.0.24");
+
+        let client = client_address(peer, "2001:db8::1", &trusted());
+
+        assert_eq!(client, Some((address("2001:db8::1"), false)));
+    }
+
+    #[test]
+    fn a_chain_of_only_trusted_proxies_names_no_client() {
         let peer = address("10.244.0.24");
         // Traffic SNATed to a pod-network address: every entry is a trusted proxy, so there is no client.
-        assert_eq!(client_address(peer, "10.244.2.0", &trusted()), None);
-        assert_eq!(client_address(peer, "", &trusted()), None);
-        assert_eq!(client_address(peer, "8.8.8.8, unknown", &trusted()), None);
+        let client = client_address(peer, "10.244.2.0", &trusted());
+
+        assert_eq!(client, None);
+    }
+
+    #[test]
+    fn an_empty_chain_names_no_client() {
+        let peer = address("10.244.0.24");
+
+        let client = client_address(peer, "", &trusted());
+
+        assert_eq!(client, None);
+    }
+
+    #[test]
+    fn a_chain_with_an_unparseable_entry_names_no_client() {
+        let peer = address("10.244.0.24");
+
+        let client = client_address(peer, "8.8.8.8, unknown", &trusted());
+
+        assert_eq!(client, None);
     }
 
     #[test]
@@ -332,20 +397,41 @@ mod tests {
         let forged = HeaderValue::from_bytes(b"8.8.8.8\xff\xfe, 198.51.100.7").unwrap();
         headers.append(FORWARDED_FOR, forged);
         headers.append(FORWARDED_FOR, HeaderValue::from_static("173.245.48.9"));
-        assert_eq!(client(peer, &headers, &trusted()), Some((address("198.51.100.7"), false)));
 
-        let mut headers = HeaderMap::new();
-        headers.append(FORWARDED_FOR, HeaderValue::from_bytes(b"198.51.100.7\xff").unwrap());
-        assert_eq!(client(peer, &headers, &trusted()), None, "the client's own entry spoiled");
+        let client = client(peer, &headers, &trusted());
+
+        assert_eq!(client, Some((address("198.51.100.7"), false)));
     }
 
     #[test]
-    fn a_pod_network_client_forms_no_group() {
+    fn a_non_ascii_byte_in_the_clients_own_entry_names_nobody() {
+        let peer: SocketAddr = "10.244.0.24:4000".parse().unwrap();
+        let mut headers = HeaderMap::new();
+        headers.append(FORWARDED_FOR, HeaderValue::from_bytes(b"198.51.100.7\xff").unwrap());
+
+        let client = client(peer, &headers, &trusted());
+
+        assert_eq!(client, None, "the client's own entry spoiled");
+    }
+
+    #[test]
+    fn without_trusted_proxies_a_pod_network_client_forms_no_group() {
         let key = [1; 32];
         let (client, direct) = client_address(address("10.244.0.24"), "", &[]).unwrap();
-        assert!(Network::new(&key, client, direct).is_none(), "no TRUSTED_PROXIES: the peer is the proxy's pod");
+
+        let network = Network::new(&key, client, direct);
+
+        assert!(network.is_none(), "no TRUSTED_PROXIES: the peer is the proxy's pod");
+    }
+
+    #[test]
+    fn a_loopback_named_by_a_header_forms_no_group() {
+        let key = [1; 32];
         let pods = [Cidr::parse("10.244.0.0/16").unwrap()];
         let (client, direct) = client_address(address("10.244.0.24"), "127.0.0.1", &pods).unwrap();
-        assert!(Network::new(&key, client, direct).is_none(), "loopback named by a header");
+
+        let network = Network::new(&key, client, direct);
+
+        assert!(network.is_none(), "loopback named by a header");
     }
 }

@@ -148,6 +148,7 @@ mod tests {
     #[test]
     fn unsigned_request_pads_attributes() {
         let message = request(ALLOCATE, [7; 12], &[(REQUESTED_TRANSPORT, &[17, 0, 0, 0]), (USERNAME, b"abcde")], None);
+
         assert_eq!(message.len(), HEADER + 8 + 12);
         assert_eq!(&message[..4], &[0x00, 0x03, 0x00, 0x14]);
         assert_eq!(&message[HEADER + 8 + 4..], b"abcde\0\0\0");
@@ -164,6 +165,7 @@ mod tests {
         let id = [3; 12];
         let bytes = response(ALLOCATE | ERROR, id, &[(ERROR_CODE, &[0, 0, 4, 1]), (REALM, b"e2e"), (NONCE, b"n0nce")]);
         let reply = Reply::parse(&bytes, ALLOCATE, id).unwrap();
+
         assert_eq!(reply.error, Some(401));
         assert_eq!(reply.attribute(REALM), Some(&b"e2e"[..]));
         assert_eq!(reply.attribute(NONCE), Some(&b"n0nce"[..]));
@@ -173,17 +175,59 @@ mod tests {
     #[test]
     fn success_has_no_error() {
         let id = [4; 12];
+
         assert_eq!(Reply::parse(&response(BINDING | SUCCESS, id, &[]), BINDING, id).unwrap().error, None);
     }
 
     #[test]
-    fn rejects_other_transactions_methods_and_truncated_messages() {
+    fn a_reply_from_another_transaction_is_rejected() {
         let id = [5; 12];
         let bytes = response(ALLOCATE | SUCCESS, id, &[(LIFETIME, &[0, 0, 2, 88])]);
-        assert!(Reply::parse(&bytes, ALLOCATE, [6; 12]).is_none(), "another transaction");
-        assert!(Reply::parse(&bytes, REFRESH, id).is_none(), "another method");
-        assert!(Reply::parse(&request(ALLOCATE, id, &[], None), ALLOCATE, id).is_none(), "a request");
-        assert!(Reply::parse(&bytes[..bytes.len() - 1], ALLOCATE, id).is_none(), "truncated");
-        assert!(Reply::parse(&bytes[..10], ALLOCATE, id).is_none(), "short header");
+
+        let reply = Reply::parse(&bytes, ALLOCATE, [6; 12]);
+
+        assert!(reply.is_none(), "another transaction");
+    }
+
+    #[test]
+    fn a_reply_for_another_method_is_rejected() {
+        let id = [5; 12];
+        let bytes = response(ALLOCATE | SUCCESS, id, &[(LIFETIME, &[0, 0, 2, 88])]);
+
+        let reply = Reply::parse(&bytes, REFRESH, id);
+
+        assert!(reply.is_none(), "another method");
+    }
+
+    #[test]
+    fn a_request_is_not_a_reply() {
+        let id = [5; 12];
+        let message = request(ALLOCATE, id, &[], None);
+
+        let reply = Reply::parse(&message, ALLOCATE, id);
+
+        assert!(reply.is_none(), "a request");
+    }
+
+    #[test]
+    fn a_truncated_reply_is_rejected() {
+        let id = [5; 12];
+        let bytes = response(ALLOCATE | SUCCESS, id, &[(LIFETIME, &[0, 0, 2, 88])]);
+        let truncated = &bytes[..bytes.len() - 1];
+
+        let reply = Reply::parse(truncated, ALLOCATE, id);
+
+        assert!(reply.is_none(), "truncated");
+    }
+
+    #[test]
+    fn a_reply_shorter_than_a_header_is_rejected() {
+        let id = [5; 12];
+        let bytes = response(ALLOCATE | SUCCESS, id, &[(LIFETIME, &[0, 0, 2, 88])]);
+        let short = &bytes[..10];
+
+        let reply = Reply::parse(short, ALLOCATE, id);
+
+        assert!(reply.is_none(), "short header");
     }
 }

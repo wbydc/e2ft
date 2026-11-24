@@ -62,43 +62,155 @@ mod tests {
         text.parse().unwrap()
     }
 
-    #[test]
-    fn a_client_gets_per_client_sockets_and_one_more_after_a_close() {
-        let mut sockets = Sockets::new(PER_CLIENT);
-        for _ in 0..PER_CLIENT {
-            assert!(sockets.open(ip("203.0.113.7")));
+    fn filled(cap: u32) -> Sockets {
+        let mut sockets = Sockets::new(cap);
+        for _ in 0..cap {
+            sockets.open(ip("203.0.113.7"));
         }
-        assert!(!sockets.open(ip("203.0.113.7")));
-        assert!(sockets.open(ip("203.0.113.8")), "another client is not affected");
 
-        sockets.close(ip("203.0.113.7"));
-        assert!(sockets.open(ip("203.0.113.7")));
-        assert!(!sockets.open(ip("203.0.113.7")));
+        sockets
     }
 
-    #[test]
-    fn each_counter_keeps_its_own_cap() {
-        let mut sockets = Sockets::new(PER_CLIENT);
-        let mut discover = Sockets::new(DISCOVER_PER_CLIENT);
-        for _ in 0..DISCOVER_PER_CLIENT {
-            assert!(discover.open(ip("203.0.113.7")));
-        }
-        assert!(!discover.open(ip("203.0.113.7")));
-        assert!(sockets.open(ip("203.0.113.7")), "a full discovery count leaves /ws open");
-    }
-
-    #[test]
-    fn ipv6_counts_by_the_64_block_and_mapped_ipv4_as_ipv4() {
+    fn filled_ipv6() -> Sockets {
         let mut sockets = Sockets::new(PER_CLIENT);
         for i in 0..PER_CLIENT {
-            assert!(sockets.open(ip(&format!("2001:db8:1:2::{i:x}"))));
+            sockets.open(ip(&format!("2001:db8:1:2::{i:x}")));
         }
-        assert!(!sockets.open(ip("2001:db8:1:2:ffff::1")), "same /64");
-        assert!(sockets.open(ip("2001:db8:1:3::1")), "next /64");
 
-        assert!(sockets.open(ip("::ffff:198.51.100.1")));
+        sockets
+    }
+
+    #[test]
+    fn a_client_gets_its_whole_share() {
+        let mut sockets = Sockets::new(PER_CLIENT);
+
+        let opened: Vec<bool> =
+            (0..PER_CLIENT).map(|_| sockets.open(ip("203.0.113.7"))).collect();
+
+        assert!(opened.iter().all(|allowed| *allowed));
+    }
+
+    #[test]
+    fn a_discovery_counter_gets_its_whole_share() {
+        let mut discover = Sockets::new(DISCOVER_PER_CLIENT);
+
+        let opened: Vec<bool> =
+            (0..DISCOVER_PER_CLIENT).map(|_| discover.open(ip("203.0.113.7"))).collect();
+
+        assert!(opened.iter().all(|allowed| *allowed));
+    }
+
+    #[test]
+    fn an_ipv6_client_gets_its_whole_share() {
+        let mut sockets = Sockets::new(PER_CLIENT);
+
+        let opened: Vec<bool> = (0..PER_CLIENT)
+            .map(|i| sockets.open(ip(&format!("2001:db8:1:2::{i:x}"))))
+            .collect();
+
+        assert!(opened.iter().all(|allowed| *allowed));
+    }
+
+    #[test]
+    fn a_client_gets_exactly_per_client_sockets() {
+        let mut sockets = filled(PER_CLIENT);
+
+        let extra = sockets.open(ip("203.0.113.7"));
+
+        assert!(!extra);
+    }
+
+    #[test]
+    fn another_client_is_not_affected_by_a_full_one() {
+        let mut sockets = filled(PER_CLIENT);
+
+        let opened = sockets.open(ip("203.0.113.8"));
+
+        assert!(opened, "another client is not affected");
+    }
+
+    #[test]
+    fn a_close_frees_one_socket() {
+        let mut sockets = filled(PER_CLIENT);
+        sockets.close(ip("203.0.113.7"));
+
+        let opened = sockets.open(ip("203.0.113.7"));
+
+        assert!(opened);
+    }
+
+    #[test]
+    fn a_closed_slot_is_taken_up_again() {
+        let mut sockets = filled(PER_CLIENT);
+        sockets.close(ip("203.0.113.7"));
+        sockets.open(ip("203.0.113.7"));
+
+        let extra = sockets.open(ip("203.0.113.7"));
+
+        assert!(!extra);
+    }
+
+    #[test]
+    fn a_discovery_counter_stops_at_its_cap() {
+        let mut discover = filled(DISCOVER_PER_CLIENT);
+
+        let extra = discover.open(ip("203.0.113.7"));
+
+        assert!(!extra);
+    }
+
+    #[test]
+    fn a_full_discovery_count_leaves_room_sockets_open() {
+        let mut sockets = Sockets::new(PER_CLIENT);
+        let _discover = filled(DISCOVER_PER_CLIENT);
+
+        let opened = sockets.open(ip("203.0.113.7"));
+
+        assert!(opened, "a full discovery count leaves /ws open");
+    }
+
+    #[test]
+    fn ipv6_sockets_count_by_the_64_block() {
+        let mut sockets = filled_ipv6();
+
+        let extra = sockets.open(ip("2001:db8:1:2:ffff::1"));
+
+        assert!(!extra, "same /64");
+    }
+
+    #[test]
+    fn the_next_64_is_a_different_client() {
+        let mut sockets = filled_ipv6();
+
+        let opened = sockets.open(ip("2001:db8:1:3::1"));
+
+        assert!(opened, "next /64");
+    }
+
+    #[test]
+    fn a_mapped_ipv4_address_closes_with_its_ipv4() {
+        let mut sockets = Sockets::new(PER_CLIENT);
+        sockets.open(ip("2001:db8:1:2::1"));
+        sockets.open(ip("2001:db8:1:3::1"));
+        sockets.open(ip("::ffff:198.51.100.1"));
         sockets.close(ip("198.51.100.1"));
-        assert_eq!(sockets.open.len(), 2, "the mapped address left with its close");
+
+        let keys = sockets.open.len();
+
+        assert_eq!(keys, 2, "the mapped address left with its close");
+    }
+
+    #[test]
+    fn a_close_keeps_the_client_while_a_socket_is_open() {
+        let mut sockets = Sockets::new(PER_CLIENT);
+        sockets.open(ip("203.0.113.7"));
+        sockets.open(ip("203.0.113.7"));
+
+        sockets.close(ip("203.0.113.7"));
+
+        let keys = sockets.open.len();
+
+        assert_eq!(keys, 1);
     }
 
     #[test]
@@ -107,10 +219,26 @@ mod tests {
         sockets.open(ip("203.0.113.7"));
         sockets.open(ip("203.0.113.7"));
         sockets.close(ip("203.0.113.7"));
-        assert_eq!(sockets.open.len(), 1);
+
         sockets.close(ip("203.0.113.7"));
-        assert_eq!(sockets.open.len(), 0);
+
+        let keys = sockets.open.len();
+
+        assert_eq!(keys, 0);
+    }
+
+    #[test]
+    fn a_stray_close_changes_nothing() {
+        let mut sockets = Sockets::new(PER_CLIENT);
+        sockets.open(ip("203.0.113.7"));
+        sockets.open(ip("203.0.113.7"));
         sockets.close(ip("203.0.113.7"));
-        assert_eq!(sockets.open.len(), 0, "a stray close changes nothing");
+        sockets.close(ip("203.0.113.7"));
+
+        sockets.close(ip("203.0.113.7"));
+
+        let keys = sockets.open.len();
+
+        assert_eq!(keys, 0, "a stray close changes nothing");
     }
 }

@@ -134,9 +134,21 @@ mod tests {
         text.parse().unwrap()
     }
 
+    /// An ICE with TURN, its client 203.0.113.7 drained of its whole burst at `start`.
+    fn drained() -> (Ice, Instant) {
+        let ice = with_turn();
+        let start = Instant::now();
+        for _ in 0..TURN_BURST as u32 / 2 {
+            ice.charge(ip("203.0.113.7"), 2, start);
+        }
+
+        (ice, start)
+    }
+
     #[test]
     fn turn_entry_expires_after_ttl_and_stun_is_separate() {
         let v = with_turn().servers_at(1_000, true);
+
         assert_eq!(v[0], json!({ "urls": ["stun:s"] }));
         assert_eq!(v[1]["username"], "1120");
         assert_eq!(v[1]["credential"], credential(b"k", "1120"));
@@ -148,48 +160,132 @@ mod tests {
     }
 
     #[test]
-    fn a_client_gets_the_burst_then_the_rate_and_others_are_not_affected() {
+    fn a_client_gets_its_whole_burst() {
         let ice = with_turn();
         let start = Instant::now();
-        for credential in 0..TURN_BURST as u32 / 2 {
-            assert!(ice.charge(ip("203.0.113.7"), 2, start), "pairing {credential} of the burst");
-        }
-        assert!(!ice.charge(ip("203.0.113.7"), 1, start), "one past the burst");
-        assert!(ice.charge(ip("203.0.113.8"), 2, start), "another client is not affected");
 
+        let charged: Vec<bool> = (0..TURN_BURST as u32 / 2)
+            .map(|_| ice.charge(ip("203.0.113.7"), 2, start))
+            .collect();
+
+        assert_eq!(charged, vec![true; TURN_BURST as usize / 2], "every pairing of the burst");
+    }
+
+    #[test]
+    fn one_credential_past_the_burst_is_refused() {
+        let (ice, start) = drained();
+
+        let charged = ice.charge(ip("203.0.113.7"), 1, start);
+
+        assert!(!charged, "one past the burst");
+    }
+
+    #[test]
+    fn another_client_is_not_affected() {
+        let (ice, start) = drained();
+
+        let charged = ice.charge(ip("203.0.113.8"), 2, start);
+
+        assert!(charged, "another client is not affected");
+    }
+
+    #[test]
+    fn a_credential_a_period_later_is_allowed() {
+        let (ice, start) = drained();
         let later = start + Duration::from_secs_f64(1.0 / TURN_PER_SECOND);
-        assert!(ice.charge(ip("203.0.113.7"), 1, later), "one credential a period later");
-        assert!(!ice.charge(ip("203.0.113.7"), 1, later), "only one");
+
+        let charged = ice.charge(ip("203.0.113.7"), 1, later);
+
+        assert!(charged, "one credential a period later");
+    }
+
+    #[test]
+    fn only_one_credential_a_period_later() {
+        let (ice, start) = drained();
+        let later = start + Duration::from_secs_f64(1.0 / TURN_PER_SECOND);
+        ice.charge(ip("203.0.113.7"), 1, later);
+
+        let charged = ice.charge(ip("203.0.113.7"), 1, later);
+
+        assert!(!charged, "only one");
+    }
+
+    #[test]
+    fn a_client_gets_its_whole_budget() {
+        let ice = with_turn();
+        let start = Instant::now();
+
+        let charged = ice.charge(ip("203.0.113.7"), TURN_BURST as u32, start);
+
+        assert!(charged);
     }
 
     #[test]
     fn ipv6_clients_share_a_budget_per_64() {
         let ice = with_turn();
         let start = Instant::now();
-        assert!(ice.charge(ip("2001:db8:1:2::1"), TURN_BURST as u32, start));
-        assert!(!ice.charge(ip("2001:db8:1:2::ffff"), 1, start), "same /64");
-        assert!(ice.charge(ip("2001:db8:1:3::1"), 1, start), "next /64");
+        ice.charge(ip("2001:db8:1:2::1"), TURN_BURST as u32, start);
+
+        let charged = ice.charge(ip("2001:db8:1:2::ffff"), 1, start);
+
+        assert!(!charged, "same /64");
     }
 
     #[test]
-    fn prune_forgets_only_refilled_budgets() {
+    fn the_next_64_has_its_own_budget() {
         let ice = with_turn();
         let start = Instant::now();
-        assert!(ice.charge(ip("203.0.113.7"), TURN_BURST as u32, start));
-        let refill = Duration::from_secs_f64(TURN_BURST / TURN_PER_SECOND);
+        ice.charge(ip("2001:db8:1:2::1"), TURN_BURST as u32, start);
 
-        ice.prune(start + refill / 2);
-        assert!(!ice.charge(ip("203.0.113.7"), TURN_BURST as u32, start + refill / 2), "half refilled, kept");
+        let charged = ice.charge(ip("2001:db8:1:3::1"), 1, start);
 
-        ice.prune(start + refill);
-        assert!(ice.budgets.lock().unwrap().is_empty());
+        assert!(charged, "next /64");
     }
 
     #[test]
-    fn no_servers_and_no_budget_when_unconfigured() {
+    fn prune_keeps_a_half_refilled_budget() {
+        let ice = with_turn();
+        let start = Instant::now();
+        ice.charge(ip("203.0.113.7"), TURN_BURST as u32, start);
+        let refill = Duration::from_secs_f64(TURN_BURST / TURN_PER_SECOND);
+        ice.prune(start + refill / 2);
+
+        let charged = ice.charge(ip("203.0.113.7"), TURN_BURST as u32, start + refill / 2);
+
+        assert!(!charged, "half refilled, kept");
+    }
+
+    #[test]
+    fn prune_forgets_a_refilled_budget() {
+        let ice = with_turn();
+        let start = Instant::now();
+        ice.charge(ip("203.0.113.7"), TURN_BURST as u32, start);
+        let refill = Duration::from_secs_f64(TURN_BURST / TURN_PER_SECOND);
+        ice.prune(start + refill / 2);
+        ice.prune(start + refill);
+
+        let kept = ice.budgets.lock().unwrap().len();
+
+        assert_eq!(kept, 0);
+    }
+
+    #[test]
+    fn no_servers_when_unconfigured() {
         let ice = Ice::new(vec![], None);
-        assert_eq!(ice.servers_at(0, true), json!([]));
-        assert!(ice.charge(ip("203.0.113.7"), 1_000, Instant::now()));
-        assert!(ice.budgets.lock().unwrap().is_empty());
+
+        let servers = ice.servers_at(0, true);
+
+        assert_eq!(servers, json!([]));
+    }
+
+    #[test]
+    fn no_budget_is_kept_when_unconfigured() {
+        let ice = Ice::new(vec![], None);
+
+        let charged = ice.charge(ip("203.0.113.7"), 1_000, Instant::now());
+        let kept = ice.budgets.lock().unwrap().len();
+
+        assert!(charged);
+        assert_eq!(kept, 0);
     }
 }
