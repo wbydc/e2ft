@@ -7,13 +7,18 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-24
+
 ### Changed
 
 - The README shows the app icon and links a live instance at https://e2ft.wbydc.app.
 - Each transfer row shows a speed graph in place of the thin progress bar: a filled area that grows with the bytes
   done, its height the speed while those bytes moved, scaled to the fastest speed so far, so a slowdown or stall
   shows as a dip. Fun mode's orb rides the graph's edge at the current speed; the wand and beam are gone.
-- The image and CI build with Node.js 26.13.1 and Rust 1.100.0.
+- The image and CI build with Node.js 26.13.1 and Rust 1.100.0. The compose file runs coturn 4.19.1; rust-embed,
+  oxfmt, oxlint and Playwright are updated.
+- The comparison page carries current info on the other tools.
+- Unit tests are arrange-act-assert with one act per test, nested by module and function. No behavior change.
 - The server's source is grouped by feature: `src/signal/` (the relay, rooms, sockets, ICE), `src/web/` (assets
   and HTTP), `src/discover/` and `src/health/`, each beside a parent file of the same name. No behavior change.
 - CI tests the server binary from the image build instead of compiling one per job, runs the end-to-end shards in
