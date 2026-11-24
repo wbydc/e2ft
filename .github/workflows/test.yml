@@ -13,6 +13,10 @@ on:
         description: Frontend code changed (web/).
         type: boolean
         required: true
+      docker:
+        description: The image changed (ops/docker/), which builds the server binary the browser suites run.
+        type: boolean
+        required: true
 
 permissions:
   contents: read
@@ -21,7 +25,7 @@ jobs:
   web-unit:
     if: inputs.node
     runs-on: ubuntu-24.04
-    container: node:26.13.0-bookworm-slim
+    container: node:26.13.1-bookworm-slim
     timeout-minutes: 10
     defaults:
       run:
@@ -37,7 +41,7 @@ jobs:
   rust-unit:
     if: inputs.rust
     runs-on: ubuntu-24.04
-    container: rust:1.99.1-bookworm
+    container: rust:1.100.0-bookworm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,10 +59,10 @@ jobs:
   # The e2e suite split over three runners by test time (scripts/shard.mjs), browsers from Playwright's image. The
   # coturn specs run in the turn job instead.
   e2e:
-    if: inputs.node || inputs.rust
+    if: inputs.node || inputs.rust || inputs.docker
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
       # The runner's user, which owns the workspace; Chromium needs the host's shared memory.
       options: --user 1001 --ipc=host
     timeout-minutes: 60
@@ -91,7 +95,7 @@ jobs:
   # secret), the own-TURN settings specs (static users), the relay with the credentials the server signs. Each suite
   # runs once the coturns and browsers are up, whatever the one before it did.
   turn:
-    if: inputs.node || inputs.rust
+    if: inputs.node || inputs.rust || inputs.docker
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

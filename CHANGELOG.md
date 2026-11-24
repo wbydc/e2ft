@@ -12,6 +12,7 @@ an older peer stop working). A patch has only fixes.
 - Each transfer row shows a speed graph in place of the thin progress bar: a filled area that grows with the bytes
   done, its height the speed while those bytes moved, scaled to the fastest speed so far, so a slowdown or stall
   shows as a dip. Fun mode's orb rides the graph's edge at the current speed; the wand and beam are gone.
+- The image and CI build with Node.js 26.13.1 and Rust 1.100.0.
 - The server's source is grouped by feature: `src/signal/` (the relay, rooms, sockets, ICE), `src/web/` (assets
   and HTTP), `src/discover/` and `src/health/`, each beside a parent file of the same name. No behavior change.
 - CI tests the server binary from the image build instead of compiling one per job, runs the end-to-end shards in

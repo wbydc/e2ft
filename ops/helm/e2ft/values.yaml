@@ -65,7 +65,7 @@ coturn:
   externalIp: ""
   # hostNetwork only: listen and relay on this node address alone instead of every interface.
   listeningIp: ""
-  image: docker.io/coturn/coturn:4.18.0
+  image: docker.io/coturn/coturn:4.19.1
   port: 3478
   minPort: 49152
   maxPort: 50151
