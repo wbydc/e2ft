@@ -1,4 +1,4 @@
-FROM node:26.13.0-bookworm-slim AS web
+FROM node:26.13.1-bookworm-slim AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -7,7 +7,7 @@ RUN npm ci --ignore-scripts
 COPY . /app/
 RUN npm run build
 
-FROM rust:1.99.1-slim-bookworm AS server
+FROM rust:1.100.0-slim-bookworm AS server
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 # Dependencies alone, in a layer the registry cache keeps (buildx does not export cache mounts).
