@@ -353,31 +353,22 @@
           <div id="out-track" class="xfer-track">
             <progress
               id="out-bar"
+              class="visually-hidden"
               max="1"
               value="0"
               aria-label="Sending progress"
               data-i18n-aria-label="sendingProgress"
             ></progress>
+            <svg
+              class="xfer-graph"
+              viewBox="0 0 100 40"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path id="out-graph" vector-effect="non-scaling-stroke" />
+            </svg>
             <div class="spell" aria-hidden="true">
-              <span class="spell-wand"></span>
-              <svg class="spell-beam" viewBox="0 0 100 28" preserveAspectRatio="none" focusable="false">
-                <path
-                  class="spell-coil a"
-                  vector-effect="non-scaling-stroke"
-                  d="M-20,14.0 L-18,17.5 L-16,19.7 L-14,19.7 L-12,17.5 L-10,14.0 L-8,10.5 L-6,8.3 L-4,8.3 L-2,10.5 L0,14.0 L2,17.5 L4,19.7 L6,19.7 L8,17.5 L10,14.0 L12,10.5 L14,8.3 L16,8.3 L18,10.5 L20,14.0 L22,17.5 L24,19.7 L26,19.7 L28,17.5 L30,14.0 L32,10.5 L34,8.3 L36,8.3 L38,10.5 L40,14.0 L42,17.5 L44,19.7 L46,19.7 L48,17.5 L50,14.0 L52,10.5 L54,8.3 L56,8.3 L58,10.5 L60,14.0 L62,17.5 L64,19.7 L66,19.7 L68,17.5 L70,14.0 L72,10.5 L74,8.3 L76,8.3 L78,10.5 L80,14.0 L82,17.5 L84,19.7 L86,19.7 L88,17.5 L90,14.0 L92,10.5 L94,8.3 L96,8.3 L98,10.5 L100,14.0 L102,17.5 L104,19.7 L106,19.7 L108,17.5 L110,14.0 L112,10.5 L114,8.3 L116,8.3 L118,10.5 L120,14.0"
-                />
-                <path
-                  class="spell-coil b"
-                  vector-effect="non-scaling-stroke"
-                  d="M-20,14.0 L-18,10.5 L-16,8.3 L-14,8.3 L-12,10.5 L-10,14.0 L-8,17.5 L-6,19.7 L-4,19.7 L-2,17.5 L0,14.0 L2,10.5 L4,8.3 L6,8.3 L8,10.5 L10,14.0 L12,17.5 L14,19.7 L16,19.7 L18,17.5 L20,14.0 L22,10.5 L24,8.3 L26,8.3 L28,10.5 L30,14.0 L32,17.5 L34,19.7 L36,19.7 L38,17.5 L40,14.0 L42,10.5 L44,8.3 L46,8.3 L48,10.5 L50,14.0 L52,17.5 L54,19.7 L56,19.7 L58,17.5 L60,14.0 L62,10.5 L64,8.3 L66,8.3 L68,10.5 L70,14.0 L72,17.5 L74,19.7 L76,19.7 L78,17.5 L80,14.0 L82,10.5 L84,8.3 L86,8.3 L88,10.5 L90,14.0 L92,17.5 L94,19.7 L96,19.7 L98,17.5 L100,14.0 L102,10.5 L104,8.3 L106,8.3 L108,10.5 L110,14.0 L112,17.5 L114,19.7 L116,19.7 L118,17.5 L120,14.0"
-                />
-                <path
-                  class="spell-coil c"
-                  vector-effect="non-scaling-stroke"
-                  d="M-20,17.5 L-18,16.8 L-16,15.1 L-14,12.9 L-12,11.2 L-10,10.5 L-8,11.2 L-6,12.9 L-4,15.1 L-2,16.8 L0,17.5 L2,16.8 L4,15.1 L6,12.9 L8,11.2 L10,10.5 L12,11.2 L14,12.9 L16,15.1 L18,16.8 L20,17.5 L22,16.8 L24,15.1 L26,12.9 L28,11.2 L30,10.5 L32,11.2 L34,12.9 L36,15.1 L38,16.8 L40,17.5 L42,16.8 L44,15.1 L46,12.9 L48,11.2 L50,10.5 L52,11.2 L54,12.9 L56,15.1 L58,16.8 L60,17.5 L62,16.8 L64,15.1 L66,12.9 L68,11.2 L70,10.5 L72,11.2 L74,12.9 L76,15.1 L78,16.8 L80,17.5 L82,16.8 L84,15.1 L86,12.9 L88,11.2 L90,10.5 L92,11.2 L94,12.9 L96,15.1 L98,16.8 L100,17.5 L102,16.8 L104,15.1 L106,12.9 L108,11.2 L110,10.5 L112,11.2 L114,12.9 L116,15.1 L118,16.8 L120,17.5"
-                />
-                <line class="spell-core" vector-effect="non-scaling-stroke" x1="0" y1="14" x2="100" y2="14" />
-              </svg>
               <span class="spell-head"></span>
             </div>
           </div>
@@ -402,31 +393,22 @@
           <div id="in-track" class="xfer-track">
             <progress
               id="in-bar"
+              class="visually-hidden"
               max="1"
               value="0"
               aria-label="Receiving progress"
               data-i18n-aria-label="receivingProgress"
             ></progress>
+            <svg
+              class="xfer-graph"
+              viewBox="0 0 100 40"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path id="in-graph" vector-effect="non-scaling-stroke" />
+            </svg>
             <div class="spell" aria-hidden="true">
-              <span class="spell-wand"></span>
-              <svg class="spell-beam" viewBox="0 0 100 28" preserveAspectRatio="none" focusable="false">
-                <path
-                  class="spell-coil a"
-                  vector-effect="non-scaling-stroke"
-                  d="M-20,14.0 L-18,17.5 L-16,19.7 L-14,19.7 L-12,17.5 L-10,14.0 L-8,10.5 L-6,8.3 L-4,8.3 L-2,10.5 L0,14.0 L2,17.5 L4,19.7 L6,19.7 L8,17.5 L10,14.0 L12,10.5 L14,8.3 L16,8.3 L18,10.5 L20,14.0 L22,17.5 L24,19.7 L26,19.7 L28,17.5 L30,14.0 L32,10.5 L34,8.3 L36,8.3 L38,10.5 L40,14.0 L42,17.5 L44,19.7 L46,19.7 L48,17.5 L50,14.0 L52,10.5 L54,8.3 L56,8.3 L58,10.5 L60,14.0 L62,17.5 L64,19.7 L66,19.7 L68,17.5 L70,14.0 L72,10.5 L74,8.3 L76,8.3 L78,10.5 L80,14.0 L82,17.5 L84,19.7 L86,19.7 L88,17.5 L90,14.0 L92,10.5 L94,8.3 L96,8.3 L98,10.5 L100,14.0 L102,17.5 L104,19.7 L106,19.7 L108,17.5 L110,14.0 L112,10.5 L114,8.3 L116,8.3 L118,10.5 L120,14.0"
-                />
-                <path
-                  class="spell-coil b"
-                  vector-effect="non-scaling-stroke"
-                  d="M-20,14.0 L-18,10.5 L-16,8.3 L-14,8.3 L-12,10.5 L-10,14.0 L-8,17.5 L-6,19.7 L-4,19.7 L-2,17.5 L0,14.0 L2,10.5 L4,8.3 L6,8.3 L8,10.5 L10,14.0 L12,17.5 L14,19.7 L16,19.7 L18,17.5 L20,14.0 L22,10.5 L24,8.3 L26,8.3 L28,10.5 L30,14.0 L32,17.5 L34,19.7 L36,19.7 L38,17.5 L40,14.0 L42,10.5 L44,8.3 L46,8.3 L48,10.5 L50,14.0 L52,17.5 L54,19.7 L56,19.7 L58,17.5 L60,14.0 L62,10.5 L64,8.3 L66,8.3 L68,10.5 L70,14.0 L72,17.5 L74,19.7 L76,19.7 L78,17.5 L80,14.0 L82,10.5 L84,8.3 L86,8.3 L88,10.5 L90,14.0 L92,17.5 L94,19.7 L96,19.7 L98,17.5 L100,14.0 L102,10.5 L104,8.3 L106,8.3 L108,10.5 L110,14.0 L112,17.5 L114,19.7 L116,19.7 L118,17.5 L120,14.0"
-                />
-                <path
-                  class="spell-coil c"
-                  vector-effect="non-scaling-stroke"
-                  d="M-20,17.5 L-18,16.8 L-16,15.1 L-14,12.9 L-12,11.2 L-10,10.5 L-8,11.2 L-6,12.9 L-4,15.1 L-2,16.8 L0,17.5 L2,16.8 L4,15.1 L6,12.9 L8,11.2 L10,10.5 L12,11.2 L14,12.9 L16,15.1 L18,16.8 L20,17.5 L22,16.8 L24,15.1 L26,12.9 L28,11.2 L30,10.5 L32,11.2 L34,12.9 L36,15.1 L38,16.8 L40,17.5 L42,16.8 L44,15.1 L46,12.9 L48,11.2 L50,10.5 L52,11.2 L54,12.9 L56,15.1 L58,16.8 L60,17.5 L62,16.8 L64,15.1 L66,12.9 L68,11.2 L70,10.5 L72,11.2 L74,12.9 L76,15.1 L78,16.8 L80,17.5 L82,16.8 L84,15.1 L86,12.9 L88,11.2 L90,10.5 L92,11.2 L94,12.9 L96,15.1 L98,16.8 L100,17.5 L102,16.8 L104,15.1 L106,12.9 L108,11.2 L110,10.5 L112,11.2 L114,12.9 L116,15.1 L118,16.8 L120,17.5"
-                />
-                <line class="spell-core" vector-effect="non-scaling-stroke" x1="0" y1="14" x2="100" y2="14" />
-              </svg>
               <span class="spell-head"></span>
             </div>
           </div>

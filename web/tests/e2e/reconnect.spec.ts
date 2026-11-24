@@ -118,7 +118,7 @@ async function outagePair(
   return { a: creator, b: joiner, net: outageControl };
 }
 
-/** Cuts the joiner's network mid-transfer and waits until both rows show the pause with Cancel only. */
+/** Cuts the joiner's network mid-transfer and waits until both rows show the pause with Cancel only and keep their graph. */
 async function pauseMidTransfer(
   creator: Peer,
   joiner: Peer,
@@ -137,6 +137,10 @@ async function pauseMidTransfer(
       await peer.page.locator(`#${dir}-bar`).evaluate((e) => (e as HTMLProgressElement).value),
       "cut before the end",
     ).toBeLessThan(1);
+    await expect(peer.page.locator(`#${dir}-graph`), "the pause keeps the drawn speed graph").toHaveAttribute(
+      "d",
+      /^M0,40L/,
+    );
     await expect(peer.page.locator("#drop")).toBeHidden();
   }
 

@@ -287,7 +287,7 @@ test("Fun mode animates the file flow: the drop fires, the offer slides in, Acce
   await expect(joiner.page.locator("#history .hist-check")).toHaveCount(1);
 });
 
-test("Fun mode casts a spell beam along the filled part of a transfer bar, and Fun mode off hides it", async () => {
+test("Fun mode puts a sparking orb on the speed graph's leading edge, and Fun mode off hides it", async () => {
   const { a: creator, b: joiner } = await connectedPair();
   for (const peer of [creator, joiner]) await disableFun(peer);
   await midTransfer(creator, joiner, "bolt.bin");
@@ -308,12 +308,14 @@ test("Fun mode casts a spell beam along the filled part of a transfer bar, and F
     const track = peer.page.locator(`#${dir}-track`);
     const spell = track.locator(".spell");
     await expect(spell).toBeVisible();
-    // The fill's --p clips the beam and places the impact orb on its edge.
-    await expect
-      .poll(() => track.evaluate((e) => Number(getComputedStyle(e).getPropertyValue("--p"))))
-      .toBeGreaterThan(0);
+    // --p places the orb at the graph's edge and --h at the current speed's height.
+    for (const property of ["--p", "--h"]) {
+      await expect
+        .poll(() => track.evaluate((e, name) => Number(getComputedStyle(e).getPropertyValue(name)), property))
+        .toBeGreaterThan(0);
+    }
     await expect(spell.locator(".spell-head")).toBeVisible();
-    await expect(spell.locator(".spell-coil").first()).toHaveCSS("animation-name", "spell-flow");
+    await expect(spell.locator(".spell-head")).toHaveCSS("animation-name", "spell-pulse");
   }
   await creator.page.click("#out-cancel");
   await expect(creator.page.locator("#out-row")).toBeHidden();

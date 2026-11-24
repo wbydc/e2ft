@@ -190,30 +190,26 @@ summary {
   outline-offset: 2px;
   border-radius: 2px;
 }
+/* The speed graph: an area that grows with the bytes done, its height the speed then against the peak so far. */
 .xfer-track {
-  display: flex;
   position: relative;
-}
-.xfer progress {
-  width: 100%;
-  height: 8px;
-  appearance: none;
-  border: 0;
-  border-radius: var(--ui-radius-pill);
-  overflow: hidden;
+  height: 40px;
+  border-radius: var(--ui-radius-control);
   background: var(--ui-input-bg);
   box-shadow: inset 0 0 0 1px var(--ui-border);
 }
-.xfer progress::-webkit-progress-bar {
-  background: transparent;
+.xfer-graph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  clip-path: inset(0 calc((1 - var(--p, 0)) * 100%) 0 0 round var(--ui-radius-control));
 }
-.xfer progress::-webkit-progress-value {
-  background: var(--ui-accent);
-  border-radius: var(--ui-radius-pill);
-}
-.xfer progress::-moz-progress-bar {
-  background: var(--ui-accent);
-  border-radius: var(--ui-radius-pill);
+.xfer-graph path {
+  fill: color-mix(in srgb, var(--ui-accent) 35%, transparent);
+  stroke: var(--ui-accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
 }
 .spell {
   display: none;
@@ -475,7 +471,7 @@ summary {
     9px 19px 0 -1.5px var(--hot);
   animation: fun-fire 0.6s cubic-bezier(0.35, 0.8, 0.5, 1) forwards;
 }
-.fun .xfer progress {
+.fun .xfer-track {
   box-shadow:
     inset 0 0 0 1px var(--ui-border),
     0 0 10px color-mix(in srgb, var(--ui-accent) 60%, transparent);
@@ -492,79 +488,29 @@ summary {
 :root.fun[data-theme="dark"] {
   --hot: var(--ui-warning-fg);
 }
-/* A spell beam from a wand dot to the fill's edge: white core, twisting coils, a small sparking impact
-   orb. It stays still while the offer waits for the receiver's answer. */
+/* A small sparking orb rides the graph's edge at the current speed. It hides while the offer waits for the
+   receiver's answer. */
 .fun .spell {
   display: block;
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 28px;
-  margin-top: -14px;
+  inset: 0;
   pointer-events: none;
 }
 .fun .xfer.is-waiting .spell {
   display: none;
 }
-.fun .spell-beam {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  clip-path: inset(-20px calc((1 - var(--p, 0)) * 100%) -20px 0);
-}
-.fun .spell-core {
-  stroke: #fff;
-  stroke-width: 2.4;
-  fill: none;
-  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px var(--ui-accent));
-}
-.fun .spell-coil {
-  fill: none;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  animation: spell-flow 0.9s linear infinite;
-}
-.fun .spell-coil.a {
-  stroke: color-mix(in srgb, var(--ui-accent) 55%, #fff);
-}
-.fun .spell-coil.b {
-  stroke: var(--hot);
-  opacity: 0.85;
-  animation-duration: 0.7s;
-}
-.fun .spell-coil.c {
-  stroke: #fff;
-  opacity: 0.7;
-  stroke-width: 0.9;
-  animation-duration: 1.2s;
-}
-.fun .spell-wand {
-  position: absolute;
-  left: -3px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  margin-top: -3px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow:
-    0 0 4px 1px #fff,
-    0 0 10px 3px var(--ui-accent);
-}
 .fun .spell-head {
   position: absolute;
   left: calc(var(--p, 0) * 100%);
-  top: 50%;
+  bottom: calc(var(--h, 0) * 97.5%);
   width: 13px;
   height: 13px;
-  margin: -6.5px 0 0 -6.5px;
+  margin: 0 0 -6.5px -6.5px;
   border-radius: 50%;
   background: radial-gradient(circle, #fff 0 22%, color-mix(in srgb, var(--ui-accent) 70%, #fff) 40%, transparent 70%);
   box-shadow: 0 0 9px 3px color-mix(in srgb, var(--ui-accent) 70%, transparent);
   animation: spell-pulse 0.6s ease-in-out infinite alternate;
+  transition: bottom 0.25s linear;
 }
 .fun .spell-head::before,
 .fun .spell-head::after {
@@ -597,11 +543,6 @@ summary {
 .fun .xfer.is-fizzle .spell {
   display: none;
 }
-@keyframes spell-flow {
-  to {
-    transform: translateX(20px);
-  }
-}
 @keyframes spell-pulse {
   from {
     transform: scale(0.9);
@@ -630,7 +571,7 @@ summary {
 .fun .xfer.is-done {
   animation: fun-shake 0.55s ease-out;
 }
-.fun .xfer.is-done progress {
+.fun .xfer.is-done .xfer-track {
   box-shadow:
     inset 0 0 0 1px var(--ui-accent),
     0 0 22px var(--ui-accent);
@@ -638,14 +579,12 @@ summary {
 .fun .xfer.is-fizzle {
   animation: fun-fizzle 0.7s ease-in forwards;
 }
-.fun .xfer.is-fizzle progress {
+.fun .xfer.is-fizzle .xfer-track {
   box-shadow: inset 0 0 0 1px var(--ui-border);
 }
-.fun .xfer.is-fizzle progress::-webkit-progress-value {
-  background: var(--ui-muted);
-}
-.fun .xfer.is-fizzle progress::-moz-progress-bar {
-  background: var(--ui-muted);
+.fun .xfer.is-fizzle .xfer-graph path {
+  fill: color-mix(in srgb, var(--ui-muted) 35%, transparent);
+  stroke: var(--ui-muted);
 }
 .fun main.is-pop {
   animation: fun-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
@@ -1307,12 +1246,9 @@ summary {
   .drop {
     transition: none;
   }
-  .fun .xfer progress {
-    animation: none;
-  }
-  .fun .spell-coil,
   .fun .spell-head {
     animation: none;
+    transition: none;
   }
   .fun .spell-head::before,
   .fun .spell-head::after {

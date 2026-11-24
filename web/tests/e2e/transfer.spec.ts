@@ -216,7 +216,7 @@ test("the speed shows in bits once Settings says so, after a reload too; a click
   await expect(joiner.page.locator("#set-speed")).toHaveValue("byte");
 });
 
-test("sender cancels: both stop, the partial file is removed, the room still works; the bars glide between renders", async () => {
+test("sender cancels: both stop, the partial file is removed, the room still works; the speed graphs draw and glide between renders", async () => {
   const { a: creator, b: joiner } = await connectedPair();
   await midTransfer(creator, joiner, "big.bin");
   // Renders come 4 times a second; a bar that glides between them shows many more distinct values.
@@ -238,6 +238,7 @@ test("sender cancels: both stop, the partial file is removed, the room still wor
         }),
     );
     expect(seen).toBeGreaterThan(10);
+    await expect(peer.page.locator(`#${dir}-graph`)).toHaveAttribute("d", /^M0,40L0,[\d.]+L0\.5,/);
   }
   await creator.page.click("#out-cancel");
   await expect(status(creator)).toContainText("You cancelled big.bin");
