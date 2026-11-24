@@ -5,7 +5,7 @@ issue.
 
 ## Before you open a pull request
 
-Run the same gate that CI runs on every pull request. The toolchain is Rust 1.99.1 and Node.js 26.13.0, the versions
+Run the same gate that CI runs on every pull request. The toolchain is Rust 1.100.0 and Node.js 26.13.1, the versions
 the `ops/docker/Dockerfile` builds with.
 
 ```bash

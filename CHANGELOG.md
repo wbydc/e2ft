@@ -9,6 +9,7 @@ an older peer stop working). A patch has only fixes.
 
 ### Changed
 
+- The image and CI build with Node.js 26.13.1 and Rust 1.100.0.
 - The server's source is grouped by feature: `src/signal/` (the relay, rooms, sockets, ICE), `src/web/` (assets
   and HTTP), `src/discover/` and `src/health/`, each beside a parent file of the same name. No behavior change.
 - CI tests the server binary from the image build instead of compiling one per job, runs the end-to-end shards in
