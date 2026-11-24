@@ -9,6 +9,7 @@ an older peer stop working). A patch has only fixes.
 
 ### Changed
 
+- The README shows the app icon and links a live instance at https://e2ft.wbydc.app.
 - Each transfer row shows a speed graph in place of the thin progress bar: a filled area that grows with the bytes
   done, its height the speed while those bytes moved, scaled to the fastest speed so far, so a slowdown or stall
   shows as a dip. Fun mode's orb rides the graph's edge at the current speed; the wand and beam are gone.

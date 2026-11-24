@@ -1,4 +1,8 @@
-# e2ft
+<p align="center"><img src="web/public/ui/favicon.svg" width="96" alt="e2ft icon"></p>
+
+<h1 align="center">e2ft</h1>
+
+<p align="center">Try it at <a href="https://e2ft.wbydc.app">e2ft.wbydc.app</a>, the author's own instance (no uptime promise).</p>
 
 Share files between two browsers. There are no accounts. Files go from browser to browser, end to end encrypted
 with a short secret that the server never sees. Nothing is stored on the server.
