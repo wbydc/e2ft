@@ -58,7 +58,7 @@ jobs:
     if: inputs.node || inputs.rust
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
       # The runner's user, which owns the workspace; Chromium needs the host's shared memory.
       options: --user 1001 --ipc=host
     timeout-minutes: 60
