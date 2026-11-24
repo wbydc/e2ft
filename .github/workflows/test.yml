@@ -13,6 +13,10 @@ on:
         description: Frontend code changed (web/).
         type: boolean
         required: true
+      docker:
+        description: The image changed (ops/docker/), which builds the server binary the browser suites run.
+        type: boolean
+        required: true
 
 permissions:
   contents: read
@@ -55,7 +59,7 @@ jobs:
   # The e2e suite split over three runners by test time (scripts/shard.mjs), browsers from Playwright's image. The
   # coturn specs run in the turn job instead.
   e2e:
-    if: inputs.node || inputs.rust
+    if: inputs.node || inputs.rust || inputs.docker
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.65.0-noble
@@ -91,7 +95,7 @@ jobs:
   # secret), the own-TURN settings specs (static users), the relay with the credentials the server signs. Each suite
   # runs once the coturns and browsers are up, whatever the one before it did.
   turn:
-    if: inputs.node || inputs.rust
+    if: inputs.node || inputs.rust || inputs.docker
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
