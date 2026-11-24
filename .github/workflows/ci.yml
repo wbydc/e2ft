@@ -18,7 +18,8 @@ concurrency:
 
 jobs:
   # What changed decides which jobs run: a skipped job reports itself as skipped, which the ruleset accepts. A
-  # change to CI itself, or a release tag, runs everything.
+  # skipped matrix job reports one check without its matrix suffix, so the e2e shards stay pending when no input
+  # the ruleset requires them for changed. A change to CI itself, or a release tag, runs everything.
   changes:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -75,6 +76,7 @@ jobs:
     with:
       rust: ${{ needs.changes.outputs.rust == 'true' }}
       node: ${{ needs.changes.outputs.node == 'true' }}
+      docker: ${{ needs.changes.outputs.docker == 'true' }}
 
   # Release tags only, after every stage passed.
   image:
