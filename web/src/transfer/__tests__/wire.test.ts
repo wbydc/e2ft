@@ -41,7 +41,7 @@ describe("wire", () => {
 
     describe("a name with a right-to-left override", () => {
       test("loses the format character", () => {
-        const parsed = offer({ name: "invoice‮fdp.exe" });
+        const parsed = offer({ name: "invoice\u202efdp.exe" });
 
         assert.equal(parsed?.name, "invoicefdp.exe");
       });
@@ -83,7 +83,7 @@ describe("wire", () => {
 
     describe("a name that is only control and whitespace", () => {
       test("becomes the file placeholder", () => {
-        const parsed = offer({ name: " ‮\u0007 " });
+        const parsed = offer({ name: " \u202e\u0007 " });
 
         assert.equal(parsed?.name, "file");
       });
