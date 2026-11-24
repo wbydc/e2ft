@@ -6,7 +6,7 @@
 # Every value here is a test value for a coturn that listens on 127.0.0.1 only.
 set -euo pipefail
 
-IMAGE=docker.io/coturn/coturn:4.18.0
+IMAGE=docker.io/coturn/coturn:4.19.1
 SECRET=${E2E_TURN_SECRET:-e2e-loopback-turn-secret-0123456789}
 STATE=${TMPDIR:-/tmp}/e2ft-coturn
 
