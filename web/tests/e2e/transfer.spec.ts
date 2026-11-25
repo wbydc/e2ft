@@ -25,7 +25,7 @@ import {
 
 registerHooks();
 
-test("a file goes each way intact, and the relay sees no secret or file metadata", async () => {
+test("a file goes each way intact, its history row unfolds the speed graph, and the relay sees no secret or file metadata", async () => {
   test.setTimeout(Math.max(120_000, SIZE / 1_500));
   const creator = await launch();
   const joiner = await launch();
@@ -41,6 +41,11 @@ test("a file goes each way intact, and the relay sees no secret or file metadata
     await expect(peer.page.locator("#history .hist--done")).toHaveCount(2);
   }
   await expect(creator.page.locator("#history .hist-name").first()).toHaveText("b-to-a.bin");
+  const row = creator.page.locator("#history .hist").first();
+  await expect(row.locator(".hist-graph")).toBeHidden();
+  await row.locator("summary").click();
+  await expect(row.locator(".hist-graph")).toBeVisible();
+  await expect(row.locator(".hist-graph path")).toHaveAttribute("d", /^M0,40L/);
 
   const secret = new URL(invite).hash.slice(1);
   const relayed = Buffer.concat(frames).toString("latin1");
@@ -58,6 +63,7 @@ test("decline: nothing is saved and the sender sees it was declined", async () =
   expect(await hasFile(joiner, "declined.bin")).toBe(false);
   for (const peer of [creator, joiner])
     await expect(peer.page.locator("#history .hist--declined .hist-name")).toHaveText("declined.bin");
+  for (const peer of [creator, joiner]) await expect(peer.page.locator("#history .hist-details")).toHaveCount(0);
 });
 
 test("after a decline, the next offers are declined unseen for a few seconds", async () => {

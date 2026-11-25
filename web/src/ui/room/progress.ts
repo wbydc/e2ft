@@ -62,6 +62,11 @@ function drawGraph(dir: Dir, fraction: number, previous: [number, number] | unde
   $(`${dir}-track`).style.setProperty("--h", String(graph.height()));
 }
 
+/** The row's graph as last drawn, for the history row; a new file clears it on its first render. */
+export function drawnGraph(dir: Dir): string {
+  return $(`${dir}-graph`).getAttribute("d") ?? "";
+}
+
 /** Renders a transfer row at most 4 times a second, plus its first and last update. */
 export function showProgress(dir: Dir, progress: Progress | null) {
   const row = $(`${dir}-row`);

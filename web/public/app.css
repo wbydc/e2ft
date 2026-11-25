@@ -190,12 +190,17 @@ summary {
   outline-offset: 2px;
   border-radius: 2px;
 }
-/* The speed graph: an area that grows with the bytes done, its height the speed then against the peak so far. */
-.xfer-track {
+/* The speed graph: an area that grows with the bytes done, its height the speed then against the peak so far, over
+   scale lines at a quarter, half and three quarters of the peak and of the file. */
+.xfer-track,
+.hist-graph {
   position: relative;
   height: 40px;
   border-radius: var(--ui-radius-control);
-  background: var(--ui-input-bg);
+  --grid: color-mix(in srgb, var(--ui-border) 70%, transparent);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 25%,
+    linear-gradient(to right, var(--grid) 1px, transparent 1px) 0 0 / 25% 100% var(--ui-input-bg);
   box-shadow: inset 0 0 0 1px var(--ui-border);
 }
 .xfer-graph {
@@ -205,7 +210,8 @@ summary {
   height: 100%;
   clip-path: inset(0 calc((1 - var(--p, 0)) * 100%) 0 0 round var(--ui-radius-control));
 }
-.xfer-graph path {
+.xfer-graph path,
+.hist-graph path {
   fill: color-mix(in srgb, var(--ui-accent) 35%, transparent);
   stroke: var(--ui-accent);
   stroke-width: 1.5;
@@ -252,6 +258,44 @@ summary {
 }
 .hist-check {
   display: none;
+}
+/* A row with a speed graph: the whole row toggles it, the chevron turns when open. */
+.hist-details {
+  flex: 1;
+  min-width: 0;
+}
+.hist-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  min-height: var(--ui-size-control-sm);
+  list-style: none;
+  border-radius: 2px;
+}
+.hist-summary::-webkit-details-marker {
+  display: none;
+}
+.hist-summary:focus-visible {
+  outline: 2px solid var(--ui-link);
+  outline-offset: 2px;
+}
+.hist-chevron {
+  color: var(--ui-muted);
+  transition: transform 0.2s;
+}
+.hist-details[open] .hist-chevron {
+  transform: rotate(180deg);
+}
+.hist-graph {
+  display: block;
+  width: 100%;
+  margin-top: var(--ui-space-2);
+  overflow: hidden;
+}
+.hist--cancelled .hist-graph path,
+.hist--failed .hist-graph path {
+  fill: color-mix(in srgb, var(--ui-muted) 35%, transparent);
+  stroke: var(--ui-muted);
 }
 
 .status-row {
@@ -1243,7 +1287,8 @@ summary {
 
 /* No shake, flicker or movement; glow and the danger color stay, and a short fade still ends each burst. */
 @media (prefers-reduced-motion: reduce) {
-  .drop {
+  .drop,
+  .hist-chevron {
     transition: none;
   }
   .fun .spell-head {
