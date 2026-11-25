@@ -301,7 +301,9 @@ creator                    server                    joiner
   DataChannels     <===== direct or TURN =====>  DataChannels
 ```
 
-Every new pairing (a rejoin on either side) increments `gen`, drops the old peer connection and builds a new one.
+Every new pairing (a rejoin on either side) increments `gen`, drops the old peer connection and builds a new one. Every
+peer connection of a room uses one DTLS certificate the room makes when it starts, so an offer never waits for a
+certificate the browser is still generating.
 The room keys are reused from page memory, so no new CPace run happens. `gen` labels the signalling stream, so
 frames from an earlier pairing cannot be opened in the next one. A page also keeps the highest `gen` it has seen
 and ends the room if the server sends one that is not higher, so a dishonest server cannot replay an earlier pairing.
