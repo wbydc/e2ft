@@ -7,6 +7,10 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- A speed graph unfolded in the room's file list no longer spills past its rounded bottom corners.
+
 ## [0.16.1] - 2026-11-25
 
 ### Changed

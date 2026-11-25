@@ -292,6 +292,10 @@ summary {
 .hist-graph {
   margin-top: var(--ui-space-2);
 }
+/* The box cannot hide overflow (the readout's label sits above it), so the graph is clipped to its rounded corners. */
+.hist-plot {
+  clip-path: inset(0 round var(--ui-radius-control));
+}
 /* The speed at the pointer: a marker line and a label above the graph that stays inside its width. */
 .xfer-track,
 .hist-graph {
