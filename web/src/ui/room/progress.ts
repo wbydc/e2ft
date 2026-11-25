@@ -4,6 +4,7 @@ import type { Dir, Finished, Progress } from "../../transfer/events.ts";
 import { $ } from "../dom.ts";
 import { burst, isLively } from "../motion.ts";
 import { speedUnit } from "../speed-unit.ts";
+import { readGraph } from "./graph-readout.ts";
 import { SpeedGraph } from "./speed-graph.ts";
 
 /** `samples` holds the rendered `[time, done]` pairs of the last WINDOW ms, for the recent rate behind speed and time left. */
@@ -13,6 +14,8 @@ const WINDOW = 8000;
 const WARMUP = 3000;
 /** Each row's graph, kept over a pause and replaced when a new file starts. */
 const graphs: Partial<Record<Dir, SpeedGraph>> = {};
+/** The graph each row drew last, kept after the row closes for its history row. */
+const drawn: Partial<Record<Dir, SpeedGraph>> = {};
 const glides: Partial<Record<Dir, number>> = {};
 const bursts: Record<Dir, number> = { out: 0, in: 0 };
 
@@ -54,18 +57,19 @@ function glide(dir: Dir, to: number, duration: number) {
 
 /** Adds the speed since the `previous` render to the row's graph and redraws it; the first render after a start or resume has none. */
 function drawGraph(dir: Dir, fraction: number, previous: [number, number] | undefined, now: number, done: number) {
+  // The first graph also gives the track its pointer readout, which reads whichever graph the row shows.
+  if (!drawn[dir]) readGraph($(`${dir}-track`), () => graphs[dir]);
   let graph = graphs[dir];
   if (!graph || fraction < graph.fraction) graph = graphs[dir] = new SpeedGraph();
+  drawn[dir] = graph;
   if (previous && now > previous[0]) graph.add(fraction, ((done - previous[1]) / (now - previous[0])) * 1000);
 
   $(`${dir}-graph`).setAttribute("d", graph.path());
   $(`${dir}-track`).style.setProperty("--h", String(graph.height()));
 }
 
-/** The row's graph as last drawn, for the history row; a new file clears it on its first render. */
-export function drawnGraph(dir: Dir): string {
-  return $(`${dir}-graph`).getAttribute("d") ?? "";
-}
+/** The row's graph as last drawn, for the history row; a new file replaces it on its first render. */
+export const drawnGraph = (dir: Dir) => drawn[dir];
 
 /** Renders a transfer row at most 4 times a second, plus its first and last update. */
 export function showProgress(dir: Dir, progress: Progress | null) {

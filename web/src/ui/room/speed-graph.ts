@@ -25,6 +25,13 @@ export class SpeedGraph {
     this.filled = Math.max(this.filled, end);
   }
 
+  /** The speed drawn at `fraction` of the file, or null where the graph has not reached yet. */
+  public speedAt(fraction: number): number | null {
+    const bucket = Math.min(BUCKETS - 1, Math.floor(fraction * BUCKETS));
+
+    return bucket >= 0 && bucket < this.filled ? this.speeds[bucket] : null;
+  }
+
   /** The current speed as a fraction of the peak, 0 to 1. */
   public height(): number {
     return this.peak ? this.current / this.peak : 0;

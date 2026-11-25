@@ -25,7 +25,7 @@ import {
 
 registerHooks();
 
-test("a file goes each way intact, its history row unfolds the speed graph, and the relay sees no secret or file metadata", async () => {
+test("a file goes each way intact, its history row unfolds the speed graph that reads the speed under the pointer, and the relay sees no secret or file metadata", async () => {
   test.setTimeout(Math.max(120_000, SIZE / 1_500));
   const creator = await launch();
   const joiner = await launch();
@@ -46,6 +46,9 @@ test("a file goes each way intact, its history row unfolds the speed graph, and 
   await row.locator("summary").click();
   await expect(row.locator(".hist-graph")).toBeVisible();
   await expect(row.locator(".hist-graph path")).toHaveAttribute("d", /^M0,40L/);
+  await row.locator(".hist-graph").hover();
+  await expect(row.locator(".graph-label")).toBeVisible();
+  await expect(row.locator(".graph-label")).toContainText(/\/s · 50%$/);
 
   const secret = new URL(invite).hash.slice(1);
   const relayed = Buffer.concat(frames).toString("latin1");
@@ -222,7 +225,7 @@ test("the speed shows in bits once Settings says so, after a reload too; a click
   await expect(joiner.page.locator("#set-speed")).toHaveValue("byte");
 });
 
-test("sender cancels: both stop, the partial file is removed, the room still works; the speed graphs draw and glide between renders", async () => {
+test("sender cancels: both stop, the partial file is removed, the room still works; the speed graphs draw, glide between renders and read the speed under the pointer", async () => {
   const { a: creator, b: joiner } = await connectedPair();
   await midTransfer(creator, joiner, "big.bin");
   // Renders come 4 times a second; a bar that glides between them shows many more distinct values.
@@ -245,6 +248,8 @@ test("sender cancels: both stop, the partial file is removed, the room still wor
     );
     expect(seen).toBeGreaterThan(10);
     await expect(peer.page.locator(`#${dir}-graph`)).toHaveAttribute("d", /^M0,40L0,[\d.]+L0\.5,/);
+    await peer.page.locator(`#${dir}-track`).hover({ position: { x: 2, y: 20 } });
+    await expect(peer.page.locator(`#${dir}-track .graph-label`)).toContainText(/\/s · 0%$/);
   }
   await creator.page.click("#out-cancel");
   await expect(status(creator)).toContainText("You cancelled big.bin");

@@ -12,6 +12,8 @@ an older peer stop working). A patch has only fixes.
 - The speed graph has scale lines at a quarter, half and three quarters of the fastest speed and of the file.
 - A finished or cancelled transfer keeps its speed graph in the room's file list, folded; clicking the row unfolds
   it.
+- Hovering a speed graph, or pressing and dragging on it on a touch screen, shows the speed at that point of the
+  file.
 
 ## [0.16.0] - 2026-11-24
 

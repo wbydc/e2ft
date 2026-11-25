@@ -6,7 +6,9 @@ import { heldFile, saveHeld } from "../../transfer/save.ts";
 import { $ } from "../dom.ts";
 import { burst, isLively } from "../motion.ts";
 import { setStatus } from "../status.ts";
+import { readGraph } from "./graph-readout.ts";
 import { drawnGraph } from "./progress.ts";
+import type { SpeedGraph } from "./speed-graph.ts";
 
 /** Incoming files kept in OPFS (iOS) until the user taps Save in their history row: transfer id to OPFS file name. */
 export const held = new Map<string, string>();
@@ -48,8 +50,8 @@ export function addHistory(finished: Finished) {
   item.append(dirText, name, size, state);
 
   if (isLively() && finished.outcome === "done") item.insertAdjacentHTML("beforeend", CHECK);
-  const graph = finished.outcome === "declined" ? "" : drawnGraph(finished.dir);
-  if (graph) foldGraph(item, graph);
+  const graph = finished.outcome === "declined" ? undefined : drawnGraph(finished.dir);
+  if (graph?.path()) foldGraph(item, graph);
   const heldName = finished.dir === "in" && finished.outcome === "done" ? held.get(finished.id) : undefined;
   if (heldName) {
     const button = Object.assign(document.createElement("button"), {
@@ -73,23 +75,26 @@ export function addHistory(finished: Finished) {
   void burst(item, "is-land"); // Fun mode: the finished file lands in the list.
 }
 
-/** Moves the row's content into a `<summary>` and puts the graph in its `<details>`, folded. */
-function foldGraph(item: HTMLLIElement, graph: string) {
+/** Moves the row's content into a `<summary>` and puts the graph, with its pointer readout, in its `<details>`, folded. */
+function foldGraph(item: HTMLLIElement, graph: SpeedGraph) {
   const details = Object.assign(document.createElement("details"), { className: "hist-details" });
   const summary = Object.assign(document.createElement("summary"), { className: "hist-summary" });
   summary.append(...item.childNodes);
   summary.insertAdjacentHTML("beforeend", CHEVRON);
 
+  const box = Object.assign(document.createElement("div"), { className: "hist-graph" });
   const svg = document.createElementNS(SVG, "svg");
-  svg.setAttribute("class", "hist-graph");
+  svg.setAttribute("class", "hist-plot");
   svg.setAttribute("viewBox", "0 0 100 40");
   svg.setAttribute("preserveAspectRatio", "none");
   svg.setAttribute("aria-hidden", "true");
   const path = document.createElementNS(SVG, "path");
-  path.setAttribute("d", graph);
+  path.setAttribute("d", graph.path());
   path.setAttribute("vector-effect", "non-scaling-stroke");
   svg.append(path);
+  box.append(svg);
+  readGraph(box, () => graph);
 
-  details.append(summary, svg);
+  details.append(summary, box);
   item.append(details);
 }

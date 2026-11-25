@@ -203,15 +203,18 @@ summary {
     linear-gradient(to right, var(--grid) 1px, transparent 1px) 0 0 / 25% 100% var(--ui-input-bg);
   box-shadow: inset 0 0 0 1px var(--ui-border);
 }
-.xfer-graph {
+.xfer-graph,
+.hist-plot {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+.xfer-graph {
   clip-path: inset(0 calc((1 - var(--p, 0)) * 100%) 0 0 round var(--ui-radius-control));
 }
 .xfer-graph path,
-.hist-graph path {
+.hist-plot path {
   fill: color-mix(in srgb, var(--ui-accent) 35%, transparent);
   stroke: var(--ui-accent);
   stroke-width: 1.5;
@@ -287,13 +290,43 @@ summary {
   transform: rotate(180deg);
 }
 .hist-graph {
-  display: block;
-  width: 100%;
   margin-top: var(--ui-space-2);
-  overflow: hidden;
 }
-.hist--cancelled .hist-graph path,
-.hist--failed .hist-graph path {
+/* The speed at the pointer: a marker line and a label above the graph that stays inside its width. */
+.xfer-track,
+.hist-graph {
+  touch-action: pan-y;
+}
+.graph-marker,
+.graph-label {
+  display: none;
+  position: absolute;
+  left: calc(var(--x, 0) * 100%);
+  pointer-events: none;
+}
+.is-reading > .graph-marker,
+.is-reading > .graph-label {
+  display: block;
+}
+.graph-marker {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ui-fg);
+}
+.graph-label {
+  bottom: calc(100% + 4px);
+  z-index: 1;
+  transform: translateX(calc(var(--x, 0) * -100%));
+  padding: 2px 6px;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-fg);
+  color: var(--ui-bg);
+  font-size: var(--ui-text-xs);
+  white-space: nowrap;
+}
+.hist--cancelled .hist-plot path,
+.hist--failed .hist-plot path {
   fill: color-mix(in srgb, var(--ui-muted) 35%, transparent);
   stroke: var(--ui-muted);
 }

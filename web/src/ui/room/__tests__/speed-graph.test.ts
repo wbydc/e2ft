@@ -68,6 +68,36 @@ describe("SpeedGraph", () => {
     });
   });
 
+  describe("speedAt", () => {
+    test("reads the speed drawn at that point of the file", () => {
+      const graph = new SpeedGraph();
+      graph.add(0.1, 1000);
+      graph.add(0.2, 3000);
+
+      const speed = graph.speedAt(0.15);
+
+      assert.equal(speed, 2000);
+    });
+
+    test("is null past the part drawn so far", () => {
+      const graph = new SpeedGraph();
+      graph.add(0.1, 1000);
+
+      const speed = graph.speedAt(0.5);
+
+      assert.equal(speed, null);
+    });
+
+    test("reads the last bucket at the very end of a finished file", () => {
+      const graph = new SpeedGraph();
+      graph.add(1, 1000);
+
+      const speed = graph.speedAt(1);
+
+      assert.equal(speed, 1000);
+    });
+  });
+
   describe("height", () => {
     test("is the current speed against the peak", () => {
       const graph = new SpeedGraph();
