@@ -48,16 +48,8 @@ const LANES = Number.isInteger(lanesParam) && lanesParam >= 1 && lanesParam <= 8
 /** What the page that accepted a discovered ask learns about the room it creates. */
 export type DiscoveredHooks = { created(): void; ended(): void };
 
-/** What browsers make by default for WebRTC, and what all of them accept. */
-const CERTIFICATE: EcKeyGenParams = { name: "ECDSA", namedCurve: "P-256" };
-
 export class Room {
   private readonly signal: Signal;
-  /** The DTLS certificate of every connection in this room, made before the first one: Chromium under load can apply
-   *  an offer before a certificate it makes itself is ready ("no identity available"). Unset: the browser makes one. */
-  private certificate: RTCCertificate | undefined;
-  /** Settles once the certificate is made or failed; server events and the peer's messages wait for it, in order. */
-  private readonly certified: Promise<void>;
   private peer: Peer | undefined;
   /** One per room, made on the first connection: each new connection resumes what the last one left paused. */
   private transfers: Transfers | undefined;
@@ -102,27 +94,20 @@ export class Room {
     if (role === "creator") showRoomInfo(settings.keepAlive, this.ownRelay, connection);
 
     this.useShared = role === "joiner" && useShared !== undefined ? Promise.resolve(useShared) : undefined;
-    this.certified = RTCPeerConnection.generateCertificate(CERTIFICATE).then(
-      (certificate) => {
-        this.certificate = certificate;
-      },
-      () => {},
-    );
-    const notVerified = () => this.end((m) => m.notVerified, "danger");
     this.signal = new Signal(
       role,
       accessKey,
       invite && invite.secret,
       {
-        server: (event) => void this.certified.then(() => this.onServer(event)).catch(notVerified),
-        message: (message) => void this.certified.then(() => this.peer?.handleSignal(message)),
+        server: (event) => this.onServer(event),
+        message: (message) => this.peer?.handleSignal(message),
         keyed: (keys) => {
           this.keys = keys;
           this.comparing = false;
         },
         compare: (code) => this.compare(code),
         wrongKey: () => this.end((m) => m.wrongKey, "danger"),
-        fail: notVerified,
+        fail: () => this.end((m) => m.notVerified, "danger"),
         reconnecting: () => this.dropPeer((m) => m.reconnecting, "warning", "plug"),
         closed: () => this.end((m) => m.serverLost, "danger"),
       },
@@ -261,10 +246,7 @@ export class Room {
 
     this.peer = new Peer(
       this.role,
-      {
-        ...relayConfig(iceServers(this.settings.turn, fromServer), this.mode),
-        certificates: this.certificate && [this.certificate],
-      },
+      relayConfig(iceServers(this.settings.turn, fromServer), this.mode),
       (message) => this.signal.send(message),
       {
         sharedTurn,

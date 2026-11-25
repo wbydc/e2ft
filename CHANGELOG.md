@@ -13,9 +13,6 @@ an older peer stop working). A patch has only fixes.
 - A cancel, and the next offer after it, reach the other side at once during a fast transfer on a busy machine,
   instead of seconds later: the sender queues 1 MiB per connection (`BUFFER_HIGH`, was 8 MiB; `BUFFER_LOW` 256 KiB,
   was 1 MiB), and control messages no longer wait behind the larger backlog.
-- In Chromium on a busy machine, a connection could fail at once with "Could not connect to the other person, not even
-  through the relay": the offer went out before the browser had made its encryption certificate. Each room now makes
-  its certificate when it starts.
 
 ## [0.16.1] - 2026-11-25
 

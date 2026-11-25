@@ -197,8 +197,7 @@ export class Peer {
     this.sawRelay = false;
     this.toldNoRelay = false;
 
-    // A configuration may not change the certificates the connection was made with.
-    this.connection.setConfiguration({ ...next, certificates: this.connection.getConfiguration().certificates });
+    this.connection.setConfiguration(next);
   }
 
   private async apply(message: unknown): Promise<void> {
