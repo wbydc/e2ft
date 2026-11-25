@@ -27,6 +27,8 @@ export interface Peer {
   ctx: BrowserContext;
   page: Page;
   dir: string;
+  /** The page's peer connection events and errors, printed when a test fails. */
+  log: string[];
 }
 
 const peers: Peer[] = [];
@@ -86,11 +88,63 @@ export async function launch(
       },
     });
   }
+  await context.addInitScript(logPeerConnections);
   const page = context.pages()[0] ?? (await context.newPage());
-  const peer = { kind, ctx: context, page, dir };
+  const peer: Peer = { kind, ctx: context, page, dir, log: [] };
+  page.on("console", (message) => {
+    if (message.text().startsWith("[rtc]")) peer.log.push(message.text());
+  });
+  page.on("pageerror", (err) => peer.log.push(`[pageerror] ${err.message}`));
   peers.push(peer);
 
   return peer;
+}
+
+/** Runs in the page: logs every peer connection's candidates, state changes and failed calls as "[rtc] ..." lines. */
+function logPeerConnections() {
+  const started = performance.now();
+  let count = 0;
+  const say = (id: number, text: string) =>
+    console.debug(`[rtc] ${((performance.now() - started) / 1000).toFixed(2)}s pc${id} ${text}`);
+  const ids = new WeakMap<RTCPeerConnection, number>();
+  const idOf = (connection: RTCPeerConnection) => {
+    if (!ids.has(connection)) {
+      const id = ++count;
+      ids.set(connection, id);
+      say(id, `new ${JSON.stringify(connection.getConfiguration().iceServers)}`);
+      connection.addEventListener("icecandidate", (event) => say(id, `local ${event.candidate?.candidate ?? "end"}`));
+      for (const kind of ["connectionstatechange", "iceconnectionstatechange", "icegatheringstatechange"]) {
+        connection.addEventListener(kind, () =>
+          say(
+            id,
+            `${kind} ${connection.connectionState}/${connection.iceConnectionState}/${connection.iceGatheringState}`,
+          ),
+        );
+      }
+    }
+
+    return ids.get(connection)!;
+  };
+  const proto = RTCPeerConnection.prototype as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+  for (const method of [
+    "setLocalDescription",
+    "setRemoteDescription",
+    "addIceCandidate",
+    "createOffer",
+    "createAnswer",
+  ]) {
+    const original = proto[method];
+    proto[method] = function (this: RTCPeerConnection, ...args: unknown[]) {
+      const id = idOf(this);
+      const arg = args[0] as { candidate?: string; type?: string } | undefined;
+      say(id, `${method} ${arg?.candidate ?? arg?.type ?? ""}`);
+
+      return original.apply(this, args).catch((err: Error) => {
+        say(id, `${method} rejected: ${err.name}: ${err.message}`);
+        throw err;
+      });
+    };
+  }
 }
 
 export const status = (p: Peer) => p.page.locator("#status");
@@ -327,6 +381,10 @@ export function registerHooks() {
     await rm(tempDirectory, { recursive: true, force: true });
   });
   test.afterEach(async () => {
+    const testInfo = test.info();
+    if (testInfo.status !== testInfo.expectedStatus) {
+      for (const [i, peer] of peers.entries()) console.log(`--- peer ${i} (${peer.kind})\n${peer.log.join("\n")}`);
+    }
     for (const peer of peers.splice(0)) {
       await peer.ctx.close().catch(() => {});
       await rm(peer.dir, { recursive: true, force: true });
