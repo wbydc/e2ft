@@ -30,6 +30,11 @@ export interface PeerHandlers {
 /** A reachable TURN gives a relay candidate within ~2 s, but Chromium ends gathering only after the ~40 s STUN timeout. */
 const NO_RELAY_MS = 10_000;
 
+/** Chromium under load can reject a new connection's first offer with an OperationError ("Fingerprint provided but
+ *  no identity available") while its DTLS certificate is still being put in place; the same call works moments later. */
+const OFFER_TRIES = 3;
+const OFFER_RETRY_MS = 100;
+
 /** The candidate pair the connection uses: `relay` on either side means TURN, `srflx`/`prflx` a punched NAT. */
 export interface Route {
   local: RTCIceCandidateType;
@@ -157,7 +162,18 @@ export class Peer {
   }
 
   private async offer(): Promise<void> {
-    await this.connection.setLocalDescription();
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.connection.setLocalDescription();
+        break;
+      } catch (err) {
+        const retryable = err instanceof DOMException && err.name === "OperationError";
+        if (!retryable || attempt >= OFFER_TRIES || this.done) throw err;
+
+        await new Promise((resolve) => setTimeout(resolve, OFFER_RETRY_MS * attempt));
+      }
+    }
+
     this.send({ t: "sdp", d: this.connection.localDescription!.toJSON() });
   }
 

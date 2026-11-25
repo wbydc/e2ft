@@ -13,6 +13,9 @@ an older peer stop working). A patch has only fixes.
 - A cancel, and the next offer after it, reach the other side at once during a fast transfer on a busy machine,
   instead of seconds later: the sender queues 1 MiB per connection (`BUFFER_HIGH`, was 8 MiB; `BUFFER_LOW` 256 KiB,
   was 1 MiB), and control messages no longer wait behind the larger backlog.
+- In Chromium on a busy machine, a connection could fail at once with "Could not connect to the other person, not even
+  through the relay" when the browser refused the first offer while it was still setting up encryption; the offer is
+  now tried again up to three times.
 
 ## [0.16.1] - 2026-11-25
 
