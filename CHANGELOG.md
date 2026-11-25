@@ -10,6 +10,9 @@ an older peer stop working). A patch has only fixes.
 ### Fixed
 
 - A speed graph unfolded in the room's file list no longer spills past its rounded bottom corners.
+- A cancel, and the next offer after it, reach the other side at once during a fast transfer on a busy machine,
+  instead of seconds later: the sender queues 1 MiB per connection (`BUFFER_HIGH`, was 8 MiB; `BUFFER_LOW` 256 KiB,
+  was 1 MiB), and control messages no longer wait behind the larger backlog.
 
 ## [0.16.1] - 2026-11-25
 

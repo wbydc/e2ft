@@ -352,8 +352,8 @@ Only one outgoing and one incoming transfer run per side at a time, and both dir
 |---|---|---|
 | `CHUNK_SIZE` | 64 KiB | Plaintext bytes per chunk. |
 | `WINDOW` | 1024 chunks (64 MiB) | Chunks the sender may run ahead of the last ack; also the receiver's reorder window. |
-| `BUFFER_HIGH` | 8 MiB | A channel with more queued data stops the send loop. |
-| `BUFFER_LOW` | 1 MiB | The channel that drained below this wakes the send loop. |
+| `BUFFER_HIGH` | 1 MiB | A channel with more queued data stops the send loop. |
+| `BUFFER_LOW` | 256 KiB | The channel that drained below this wakes the send loop. |
 | `ACK_EVERY` | 32 chunks | The receiver acks after this many written chunks. |
 | `ACK_MS` | 500 ms | Or after this long since the last ack. |
 

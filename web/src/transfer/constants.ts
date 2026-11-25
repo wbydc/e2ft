@@ -9,7 +9,9 @@ export const MAX_DIRECT = CONFIG.MAX_DIRECT;
  *  both browsers of a pairing usually share, since the server makes it from the expiry second (`src/signal/ice.rs`). */
 export const TURN_QUOTA = CONFIG.TURN_QUOTA;
 
-/** A channel over this many queued bytes stops the sender until it drains below BUFFER_LOW. */
+/** A channel over this many queued bytes stops the sender until it drains below BUFFER_LOW. Kept small: a control
+ *  message (a cancel, the next offer) reaches the other side only after the chunks queued ahead of it, and a busy
+ *  receiver drains 8 MiB in seconds, a slow link in a minute. */
 export const BUFFER_HIGH = CONFIG.BUFFER_HIGH;
 /** A channel under this many queued bytes wakes the sender. */
 export const BUFFER_LOW = CONFIG.BUFFER_LOW;

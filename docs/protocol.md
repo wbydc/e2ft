@@ -429,7 +429,7 @@ authenticated chunks are buffered.
 Ordering and flow:
 
 - The sender chooses the open channel with the least queued data.
-- It pauses while that channel holds more than 8 MiB and resumes when it drops below 1 MiB.
+- It pauses while that channel holds more than 1 MiB and resumes when it drops below 256 KiB.
 - It stays at most 1024 chunks (64 MiB) ahead of the last ack.
 - The receiver drops duplicate indices and indices before the first unwritten one, and rejects an index 1024 or more
   beyond it.

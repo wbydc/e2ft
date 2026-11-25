@@ -53,8 +53,8 @@ impl Settings {
         let window = int("WINDOW", 1024, 16, 65_536)?;
         let max_direct = int("MAX_DIRECT", 8, 1, 16)?;
         let turn_quota = int("TURN_QUOTA", 12, 1, 100)?;
-        let buffer_high = int("BUFFER_HIGH", 8 * MIB, 64 * 1024, 64 * MIB)?;
-        let buffer_low = int("BUFFER_LOW", MIB, 0, 64 * MIB)?;
+        let buffer_high = int("BUFFER_HIGH", MIB, 64 * 1024, 64 * MIB)?;
+        let buffer_low = int("BUFFER_LOW", 256 * 1024, 0, 64 * MIB)?;
         let step_ms = int("STEP_MS", 3000, 500, 60_000)?;
         let gain = match read("GAIN") {
             None => 1.2,
@@ -141,8 +141,8 @@ mod tests {
         assert_eq!(
             json,
             serde_json::json!({
-                "CHUNK_SIZE": 65536, "WINDOW": 1024, "MAX_DIRECT": 8, "TURN_QUOTA": 12, "BUFFER_HIGH": 8_388_608,
-                "BUFFER_LOW": 1_048_576, "STEP_MS": 3000, "GAIN": 1.2, "LANE_OPEN_MS": 10000, "ACK_EVERY": 32,
+                "CHUNK_SIZE": 65536, "WINDOW": 1024, "MAX_DIRECT": 8, "TURN_QUOTA": 12, "BUFFER_HIGH": 1_048_576,
+                "BUFFER_LOW": 262_144, "STEP_MS": 3000, "GAIN": 1.2, "LANE_OPEN_MS": 10000, "ACK_EVERY": 32,
                 "ACK_MS": 500, "ACCESS_LEN": 8, "SECRET_LEN": 6, "KEEP_ALIVES": [0, 60, 300, 900, 1800],
                 "KEEP_ALIVE": 300
             })
@@ -189,8 +189,8 @@ mod tests {
             ),
             (&[("KEEP_ALIVE", "7")], "KEEP_ALIVE: 7, expected one of KEEP_ALIVES (0,60,300,900,1800)"),
             (
-                &[("BUFFER_LOW", "8388608")],
-                "BUFFER_LOW: 8388608, expected below BUFFER_HIGH (8388608)",
+                &[("BUFFER_LOW", "1048576")],
+                "BUFFER_LOW: 1048576, expected below BUFFER_HIGH (1048576)",
             ),
             (
                 &[("WINDOW", "8192"), ("CHUNK_SIZE", "65536")],

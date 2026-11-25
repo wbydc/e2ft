@@ -181,8 +181,8 @@ it into the shell: `set -a; . ./.env; set +a`. The server does not read `.env` i
 | `WINDOW` | `1024` | 16 to 65536 | Chunks the sender may run ahead of the receiver's acks. `WINDOW * CHUNK_SIZE` is at most 256 MiB. |
 | `MAX_DIRECT` | `8` | 1 to 16 | Peer connections per direction when the main connection is direct. |
 | `TURN_QUOTA` | `12` | 1 to 100 | TURN allocations per username; match coturn's `user-quota`. |
-| `BUFFER_HIGH` | `8388608` | 64 KiB to 64 MiB | Queued bytes on a channel that pause the sender. |
-| `BUFFER_LOW` | `1048576` | 0 to 64 MiB | Queued bytes below which the sender resumes. Below `BUFFER_HIGH`. |
+| `BUFFER_HIGH` | `1048576` | 64 KiB to 64 MiB | Queued bytes on a channel that pause the sender. |
+| `BUFFER_LOW` | `262144` | 0 to 64 MiB | Queued bytes below which the sender resumes. Below `BUFFER_HIGH`. |
 | `STEP_MS` | `3000` | 500 to 60000 | How long each step of adding connections measures the rate. |
 | `GAIN` | `1.2` | above 1, up to 4 | The rate gain a new connection must bring to stay. |
 | `LANE_OPEN_MS` | `10000` | 1000 to 120000 | How long an extra connection may take to open. |

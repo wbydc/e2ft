@@ -169,7 +169,7 @@ valid on any connection. The frame on the data channel is `u32-be(transfer numbe
 A frame whose transfer number is not the current incoming transfer is dropped.
 
 The sender reads a chunk at a time, never the whole file. It sends on the open connection with the least queued data,
-pauses while that connection holds more than 8 MiB, and stays at most 1024 chunks, 64 MiB, ahead of the last
+pauses while that connection holds more than 1 MiB, and stays at most 1024 chunks, 64 MiB, ahead of the last
 acknowledgement. The receiver decrypts each chunk on arrival, holds out-of-order chunks in a reorder buffer bounded
 by the same 1024, writes them in order, refuses more bytes than were offered and closes the file when the byte count
 equals the offered size. An error aborts the partial file.
