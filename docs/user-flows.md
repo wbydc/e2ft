@@ -206,6 +206,24 @@ the same transfer number, and nothing appears twice in history. A file that was 
 settled by `received` or `pending` messages after the reconnect. A cancel made while paused takes effect when the room
 reconnects.
 
+## Slow transfer: switch to Relay over TCP
+
+Some networks slow down direct connections to a few hundred kB/s. A transfer can stay below 500 kB/s for 10 seconds
+after its first 3 seconds, while its number of connections stays the same. When that happens, a card under the
+transfer rows says `This transfer is slow. Some networks slow down direct connections, and relaying over TCP often gets
+past that. The relay server would see both of your IP addresses.` and offers `Switch to Relay over TCP` and `Dismiss`.
+The card appears at most once per room. It does not appear when the room is already Relay over TCP or when no TURN
+server is configured.
+
+`Switch to Relay over TCP` shows `Asked the other person to switch to Relay over TCP…` and opens the `Switch to Relay
+over TCP?` dialog on the other side with `Decline` and `Accept`. On `Accept`, both sides show `Switching to Relay over
+TCP…`. The room reconnects through the relay over TCP, a running transfer pauses briefly and then resumes, and the room
+info line ends with `Relay only, over TCP.` Later reconnects in that room stay on Relay over TCP. On `Decline`, the
+asking side sees `The other person kept the current connection.` After a decline or a `Dismiss`, the card does not
+appear again in that room, reconnects included.
+
+`?slow=1` shows the card as soon as a transfer runs, for trying the switch on a fast network.
+
 If the away side does not return within the keep-alive, the server deletes the room. The side that was waiting sees
 `The other person left. The room is deleted.` The returning side sees `The room is gone: the other person left, or one
 of you was away too long.` A transfer that was paused fails on both sides and its partial file is removed.

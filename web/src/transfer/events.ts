@@ -2,7 +2,7 @@
 // transfer ended.
 import type { Text } from "../i18n/index.ts";
 import type { Sink } from "./sink.ts";
-import type { Offer } from "./wire.ts";
+import type { Offer, SwitchAnswer } from "./wire.ts";
 
 export type Dir = "out" | "in";
 
@@ -39,5 +39,7 @@ export interface TransferHooks {
   status(text: Text, kind: "info" | "success" | "warning" | "danger", waiting?: boolean): void;
   progress(dir: Dir, progress: Progress | null): void;
   finished(finished: Finished): void;
+  /** The peer's step in moving the room to Relay over TCP. */
+  switchTcp(answer: SwitchAnswer): void;
   fail(err: unknown): void;
 }

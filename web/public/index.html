@@ -431,6 +431,21 @@
           </div>
         </div>
 
+        <div id="slow-card" class="ui-alert notify-card" role="note" hidden>
+          <p data-i18n="slowText">
+            This transfer is slow. Some networks slow down direct connections, and relaying over TCP often gets past
+            that. The relay server would see both of your IP addresses.
+          </p>
+          <div class="row">
+            <button id="slow-switch" class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-i18n="slowSwitch">
+              Switch to Relay over TCP
+            </button>
+            <button id="slow-dismiss" class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-i18n="dismiss">
+              Dismiss
+            </button>
+          </div>
+        </div>
+
         <section id="history-box" class="stack history" hidden>
           <h2 class="ui-label" data-i18n="historyTitle">FILES IN THIS ROOM</h2>
           <ul id="history" class="history-list"></ul>
@@ -467,6 +482,21 @@
         <div class="row">
           <button class="ui-btn ui-btn--secondary" value="decline" data-i18n="decline">Decline</button>
           <button id="ask-accept" class="ui-btn" value="accept" data-i18n="accept">Accept</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="switch" class="ui-card dialog" aria-labelledby="switch-title" aria-describedby="switch-text">
+      <form method="dialog" class="stack">
+        <h2 class="ui-h2" id="switch-title" data-i18n="switchTitle">Switch to Relay over TCP?</h2>
+        <p id="switch-text" data-i18n="switchText">
+          The other person's transfer is slow, and they ask to relay this room over TCP, which often gets past networks
+          that slow down direct connections. The relay server will see your IP address. A running transfer pauses for a
+          moment, then continues.
+        </p>
+        <div class="row">
+          <button class="ui-btn ui-btn--secondary" value="decline" data-i18n="decline">Decline</button>
+          <button id="switch-accept" class="ui-btn" value="accept" data-i18n="accept">Accept</button>
         </div>
       </form>
     </dialog>

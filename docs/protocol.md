@@ -394,6 +394,9 @@ channel. The message object is the `m` field of the sealed JSON. The fields:
 | `pending` | `id` | sender | First message on a new connection for a paused outgoing transfer. The receiver answers `received` if this is the file it last finished, `cancel` if it no longer has it, and nothing if the transfer is its own paused incoming one. |
 | `lane` | `id`, `n`, `d` | sender offers, receiver answers | SDP of extra data connection `n` for transfer `id`. |
 | `lane-ice` | `id`, `n`, `c` | both | One ICE candidate for extra data connection `n`; `null` marks the end. |
+| `switch` | `a` | either | Moving the room to Relay over TCP: `a` is `ask`, then the other side's `yes` or `no`. See "Switch to Relay over TCP". |
+
+A `switch` whose `a` is not `ask`, `yes` or `no` is dropped.
 
 An `offer` is valid only when `id`, `name` and `type` are strings, `size` is a safe integer at least 0, and `x` is a
 safe integer from 0 to 4294967295. The receiver truncates `name` and `type` to 255 characters. Any other message
@@ -483,6 +486,22 @@ When connection 0 drops, the room may still be alive and the transfer pauses:
 A transfer paused this way waits as long as the room exists. The room ending, a leave or a keep-alive expiry fails
 both directions and removes the partial file. A page reload or closed tab loses the `File` and the sink, so it ends
 the transfer too.
+
+## Switch to Relay over TCP
+
+A room in `auto` or `relay` mode can move to Relay over TCP while it runs:
+
+1. One side sends `switch` with `a: "ask"`.
+2. The other side answers `yes` or `no`. A side whose configuration has no TURN URL answers `no` at once.
+3. On `yes`, both sides set the room's connection mode to `tcp`. The side that asked replaces its signalling socket
+   with a fresh one that rejoins its seat, so the server pairs both sides again.
+4. The new connection 0 is built relay-only with every `turn:` URL moved to TCP, and the creator sends `relay` with
+   `tcp: true` before its offer, as in a room created that way. Paused transfers resume as in "Pause and resume". Every
+   later pairing in the room stays `tcp`.
+
+If both sides send `ask` before either answer arrives, both switch and only the creator rejoins. The switch replaces
+connection 0 instead of restarting ICE on it, because Chromium keeps using the direct candidate pair it already has
+after an ICE restart into a relay-only configuration.
 
 ## Cancel and close
 

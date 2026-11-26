@@ -120,9 +120,9 @@ jobs:
       - name: health check TURN tests
         if: ${{ inputs.rust && !cancelled() && steps.browsers.outcome == 'success' }}
         run: cargo test --locked -- --ignored
-      - name: own-TURN settings specs
+      - name: own-TURN specs (settings, switch to Relay over TCP)
         if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        run: npx playwright test tests/e2e/settings.spec.ts --grep @turn
+        run: npx playwright test tests/e2e/settings.spec.ts tests/e2e/switch.spec.ts --grep @turn
         working-directory: web
         env:
           E2E_TURN: "1"

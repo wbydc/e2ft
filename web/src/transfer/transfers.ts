@@ -12,8 +12,8 @@ import { BUFFER_LOW, MAX_DIRECT } from "./constants.ts";
 import type { LanePlan, Link } from "./lanes.ts";
 import { Outgoing } from "./outgoing.ts";
 import type { OutgoingContext } from "./outgoing.ts";
-import { parseOffer, unframe } from "./wire.ts";
-import type { ControlMessage, LaneMessage, Offer } from "./wire.ts";
+import { parseOffer, parseSwitch, unframe } from "./wire.ts";
+import type { ControlMessage, LaneMessage, Offer, SwitchAnswer } from "./wire.ts";
 
 /** After the user declines, the peer's offers are declined unseen for this long, so a peer can't re-offer in a loop. */
 const DECLINE_QUIET_MS = 5_000;
@@ -194,6 +194,11 @@ export class Transfers {
     this.outgoing = null;
   }
 
+  /** Our step in moving the room to Relay over TCP; dropped while no connection is open, like any control message. */
+  public sendSwitch(answer: SwitchAnswer): void {
+    this.send({ t: "switch", a: answer });
+  }
+
   /** Dropped while no connection is open: whoever is told later learns it from `resume` or `pending`. */
   private send(message: ControlMessage): void {
     const link = this.link;
@@ -230,7 +235,7 @@ export class Transfers {
     const message = (await link.sealer.open(fromB64url(data))) as ControlMessage;
     if (this.link !== link) return;
 
-    const out = this.outgoing?.id === message?.id ? this.outgoing : null;
+    const out = this.outgoing?.id === (message as { id?: unknown } | null)?.id ? this.outgoing : null;
     switch (message?.t) {
       case "offer": {
         const offer = parseOffer(message);
@@ -277,6 +282,12 @@ export class Transfers {
       case "lane":
       case "lane-ice":
         return this.laneSignal(message);
+      case "switch": {
+        const answer = parseSwitch(message);
+        if (answer) this.hooks.switchTcp(answer);
+
+        return;
+      }
       default:
         throw new Error("unknown control message");
     }

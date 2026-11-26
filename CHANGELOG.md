@@ -7,6 +7,13 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+### Added
+
+- A transfer that stays slow, as on networks that slow down direct connections, offers to switch the room to Relay
+  over TCP. The other person has to accept, since the relay then sees both IP addresses. The room reconnects through
+  the relay, a running transfer continues where it paused, and the room stays on Relay over TCP. A peer on an older
+  version cannot take part in the switch, so both sides need this version.
+
 ### Fixed
 
 - A speed graph unfolded in the room's file list no longer spills past its rounded bottom corners.

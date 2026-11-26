@@ -219,6 +219,16 @@ const en = {
   connHint: "For both of you, this room only. Relay over TCP can get past networks that slow down calls and video.",
   relayOnly: " Relay only.",
   relayOnlyTcp: " Relay only, over TCP.",
+  slowText:
+    "This transfer is slow. Some networks slow down direct connections, and relaying over TCP often gets past that. The relay server would see both of your IP addresses.",
+  slowSwitch: "Switch to Relay over TCP",
+  dismiss: "Dismiss",
+  switchTitle: "Switch to Relay over TCP?",
+  switchText:
+    "The other person's transfer is slow, and they ask to relay this room over TCP, which often gets past networks that slow down direct connections. The relay server will see your IP address. A running transfer pauses for a moment, then continues.",
+  switchAsked: "Asked the other person to switch to Relay over TCP…",
+  switchDeclined: "The other person kept the current connection.",
+  switching: "Switching to Relay over TCP…",
   roomInfo: (keepMin: number, relay: "ours" | "own" | "theirs") =>
     (keepMin ? `If a side drops, the room waits ${keepMin} min.` : "The room ends as soon as a side drops.") +
     { ours: " Relay: our servers.", own: " Relay: your TURN server.", theirs: " Relay: their TURN server." }[relay],

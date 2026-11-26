@@ -25,7 +25,11 @@ export type ControlMessage =
   | { t: "resume"; id: string; n: number }
   | { t: "pending"; id: string }
   /** `n`: the extra connection, 1 to MAX_DIRECT - 1. */
-  | LaneMessage;
+  | LaneMessage
+  /** Moving the room to Relay over TCP: one side asks, the other answers yes or no. */
+  | { t: "switch"; a: SwitchAnswer };
+
+export type SwitchAnswer = "ask" | "yes" | "no";
 
 export type LaneMessage = LaneSignal & { id: string; n: number };
 
@@ -69,6 +73,11 @@ export function parseOffer(message: { t: "offer"; x: number } & Offer): Offer | 
   return ok
     ? { id: message.id, name: cleanFileName(message.name), size: message.size, type: message.type.slice(0, 255) }
     : null;
+}
+
+/** The peer's `switch` message: anything but one of the three answers is null. */
+export function parseSwitch(message: { a?: unknown }): SwitchAnswer | null {
+  return message.a === "ask" || message.a === "yes" || message.a === "no" ? message.a : null;
 }
 
 export function frame(transferNumber: number, index: number, ciphertext: Bytes): Bytes {

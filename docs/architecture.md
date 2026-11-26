@@ -195,6 +195,7 @@ classes, and pure helpers stay functions. All DOM code lives under `ui/`.
 | File | Role |
 |---|---|
 | `web/src/room/room.ts` | The `Room` class: one room from start to end, holding signalling, the peer connection of the current pairing, the room's `Transfers`, the wake lock and the page events that end, wake or reseat the room. |
+| `web/src/room/slow-watch.ts` | The `SlowWatch` class: decides when a transfer is slow enough to suggest Relay over TCP. |
 | `web/src/room/messages.ts` | Text tables: server refusals, relay failure messages and notification titles. |
 
 ### Cryptography
@@ -265,6 +266,7 @@ The protocol details are in [protocol.md](protocol.md).
 | `web/src/ui/room/progress.ts` | Progress rows. |
 | `web/src/ui/room/history.ts` | Finished transfers. |
 | `web/src/ui/room/offer.ts` | The incoming file dialog. |
+| `web/src/ui/room/switch.ts` | The Relay over TCP suggestion card and the dialog that answers the other side's ask. |
 | `web/src/ui/room/compare.ts` | The dialog that shows a discovered room's 6-digit code. |
 | `web/src/ui/room/view.ts` | The room screen: entering it, send controls, room info and the ended state. |
 

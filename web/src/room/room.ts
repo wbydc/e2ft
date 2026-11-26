@@ -12,14 +12,17 @@ import { Peer } from "../net/peer.ts";
 import type { RoomSettings, Turn } from "../net/settings.ts";
 import { Signal } from "../net/signal.ts";
 import type { ServerEvent } from "../net/signal.ts";
+import type { Dir, Progress } from "../transfer/events.ts";
 import { Transfers } from "../transfer/transfers.ts";
 import type { LanePlan } from "../transfer/lanes.ts";
+import type { SwitchAnswer } from "../transfer/wire.ts";
 import { notify } from "../ui/notify.ts";
 import { setupConnInfo } from "../ui/room/conn.ts";
 import { addHistory } from "../ui/room/history.ts";
 import { askCompare, closeCompare } from "../ui/room/compare.ts";
 import { askOffer, closeOffer } from "../ui/room/offer.ts";
 import { flourish, showProgress } from "../ui/room/progress.ts";
+import { askSwitch, closeSwitch, showSlowCard, wireSlowCard } from "../ui/room/switch.ts";
 import {
   askUseShared,
   hidePaired,
@@ -36,6 +39,7 @@ import { defuseCountdown, setPresence, setStatus, showAway, stopAway } from "../
 import type { Kind, Presence } from "../ui/status.ts";
 import { ERRORS, LATE_ERRORS, NOTIFY_TITLE, RELAY_DOWN } from "./messages.ts";
 import type { RelayBy } from "./messages.ts";
+import { SlowWatch } from "./slow-watch.ts";
 
 /** `?relay=1` forces this browser through TURN, like a Relay room without telling the other side. */
 export const RELAY_ONLY = new URLSearchParams(location.search).has("relay");
@@ -44,6 +48,10 @@ export const RELAY_ONLY = new URLSearchParams(location.search).has("relay");
  *  one-connection baseline for speed comparisons. */
 const lanesParam = Number(new URLSearchParams(location.search).get("lanes"));
 const LANES = Number.isInteger(lanesParam) && lanesParam >= 1 && lanesParam <= 8 ? lanesParam : null;
+
+/** `?slow=1` suggests Relay over TCP as soon as a transfer runs, slow or not, so the switch can be tried on a fast
+ *  network. */
+const FORCE_SLOW = new URLSearchParams(location.search).has("slow");
 
 /** What the page that accepted a discovered ask learns about the room it creates. */
 export type DiscoveredHooks = { created(): void; ended(): void };
@@ -68,29 +76,31 @@ export class Room {
   private useShared: Promise<boolean> | undefined;
   private wakeLock: WakeLockSentinel | null = null;
   private readonly ownRelay: RelayBy;
-  /** This browser's connection mode: the room's, or relay when forced here (`?relay=1`, Always relay). */
-  private readonly mode: Connection;
+  private readonly slowWatch = new SlowWatch();
+  /** The Relay over TCP suggestion: watching transfers, on the card, asked of the peer, the peer's ask on screen, or
+   *  over for this room (switched, dismissed or declined), reconnects included. */
+  private slow: "watching" | "shown" | "asked" | "deciding" | "over" = "watching";
 
   /** `invite` is null in a discovered room, which has no secret: both screens compare a code instead, and
    *  `hooks.created` tells the creating page its room exists, so it can pass `accessKey` on; `hooks.ended` that
    *  the room ended, whether or not it was created.
    *  A creator's `invite` is `Invite.create()` from the same `settings` and `connection`, so its hints match the room.
    *  `settings` is copied when the room starts: later edits to the defaults do not change it. `connection` is
-   *  the creator's custom-room choice; a joiner learns it from the creator. `useShared` is the joiner's answer
-   *  on the Join screen when the invite announced a shared TURN. */
+   *  the creator's custom-room choice; a joiner learns it from the creator. Both sides set it to tcp when they
+   *  agree to switch a slow room. `useShared` is the joiner's answer on the Join screen when the invite announced a
+   *  shared TURN. */
   private constructor(
     private readonly role: Role,
     accessKey: string,
     private readonly invite: Invite | null,
     private readonly settings: RoomSettings,
-    private readonly connection: Connection,
+    private connection: Connection,
     useShared: boolean | undefined,
     private readonly hooks?: DiscoveredHooks,
   ) {
     showRoomScreen(role, invite, settings.hideQr);
     setStatus(role === "creator" ? (m) => m.creating : (m) => m.joining);
     this.ownRelay = settings.turn ? "own" : "ours";
-    this.mode = connection === "auto" && (RELAY_ONLY || settings.alwaysTurn) ? "relay" : connection;
     if (role === "creator") showRoomInfo(settings.keepAlive, this.ownRelay, connection);
 
     this.useShared = role === "joiner" && useShared !== undefined ? Promise.resolve(useShared) : undefined;
@@ -114,6 +124,11 @@ export class Room {
       { keepAlive: settings.keepAlive },
     );
     this.listen();
+  }
+
+  /** This browser's connection mode: the room's, or relay when forced here (`?relay=1`, Always relay). */
+  private get mode(): Connection {
+    return this.connection === "auto" && (RELAY_ONLY || this.settings.alwaysTurn) ? "relay" : this.connection;
   }
 
   public static start(
@@ -150,6 +165,7 @@ export class Room {
       cancel: (dir) => this.transfers?.cancel(dir),
       leave: () => this.end((m) => m.youLeft, "info"),
     });
+    wireSlowCard({ switch: () => this.askSwitch(), dismiss: () => this.dismissSlow() });
 
     // A page put in the back/forward cache may come back, so its pagehide does not leave.
     window.addEventListener("pagehide", (event) => !event.persisted && this.end((m) => m.youLeft, "info"));
@@ -209,8 +225,7 @@ export class Room {
   /** A new pairing: replace the peer connection with one built from the server's ICE servers. */
   private connectPeer(fromServer: RTCIceServer[], keepAlive: number): void {
     let relayBy = this.ownRelay;
-    let connection = this.connection;
-    const info = () => showRoomInfo(keepAlive, relayBy, connection);
+    const info = () => showRoomInfo(keepAlive, relayBy, this.connection);
     info();
     this.dropPeer((m) => m.connecting, "info", "defuse");
 
@@ -241,7 +256,7 @@ export class Room {
       return relayConfig(iceServers(turn, fromServer), this.mode);
     };
     // Only a room that cannot go direct ends the moment the relay is known to be unreachable; Auto waits for ICE.
-    const relayOnly = () => this.mode !== "auto" || connection !== "auto";
+    const relayOnly = () => this.mode !== "auto";
     const relayDown = () => RELAY_DOWN[relayBy][relayOnly() ? "only" : "auto"];
 
     this.peer = new Peer(
@@ -253,7 +268,7 @@ export class Room {
         relay: (forced) => {
           if (this.pairing !== pairing) return;
 
-          connection = forced;
+          this.connection = forced;
           info();
         },
         noRelay: () => {
@@ -319,12 +334,16 @@ export class Room {
         offer: (offer) => askOffer(offer, () => this.transfers?.cancel("in")),
         offerCancelled: () => closeOffer("withdrawn"),
         status: (text, kind, waiting) => setStatus(text, kind, waiting ? "waiting" : null),
-        progress: showProgress,
+        progress: (dir, progress) => {
+          showProgress(dir, progress);
+          this.watchSlow(dir, progress);
+        },
         finished: (finished) => {
           addHistory(finished);
           flourish(finished);
           void notify(translate(NOTIFY_TITLE[finished.dir][finished.outcome]), finished.name, finished.id);
         },
+        switchTcp: (answer) => void this.peerSwitch(answer),
         fail: () => this.end((m) => m.transferFailed, "danger"),
       },
       LANES,
@@ -344,6 +363,7 @@ export class Room {
 
     hidePaired();
     closeOffer("decline");
+    closeSwitch();
     setStatus(text, kind);
     if (presence === "defuse") {
       if (wasCountdown) defuseCountdown();
@@ -358,11 +378,86 @@ export class Room {
     this.ended = true;
     this.signal.leave();
     closeCompare();
+    showSlowCard(false);
 
     void this.wakeLock?.release().catch(() => {});
     this.wakeLock = null;
     showEnded(kind);
     this.hooks?.ended();
+  }
+
+  /** Shows the Relay over TCP suggestion once a transfer has crawled long enough, unless this room is past it. */
+  private watchSlow(dir: Dir, progress: Progress | null): void {
+    const eligible = this.slow === "watching" && this.connection !== "tcp" && !!this.peer?.hasTurn();
+    const lanes = this.transfers?.lanes[dir] ?? 0;
+    const slow = this.slowWatch.sample(dir, progress, lanes, performance.now(), eligible);
+    if (!slow && !(FORCE_SLOW && eligible && progress && !progress.paused)) return;
+
+    this.slow = "shown";
+    showSlowCard(true);
+  }
+
+  /** The card's Switch: ask the peer, who has to accept, since relaying shows both IP addresses to the TURN server. */
+  private askSwitch(): void {
+    if (this.slow !== "shown" || !this.transfers?.connected) return;
+
+    this.slow = "asked";
+    showSlowCard(false);
+    this.transfers.sendSwitch("ask");
+    setStatus((m) => m.switchAsked, "info", "waiting");
+  }
+
+  private dismissSlow(): void {
+    this.slow = "over";
+    showSlowCard(false);
+  }
+
+  private async peerSwitch(answer: SwitchAnswer): Promise<void> {
+    if (answer !== "ask") {
+      if (this.slow !== "asked") return;
+
+      if (answer === "yes") this.switchToTcp(true);
+      else {
+        this.slow = "over";
+        setStatus((m) => m.switchDeclined, "info");
+      }
+
+      return;
+    }
+
+    // Both asked at once: both switch, and only the creator takes its seat again.
+    if (this.slow === "asked") return this.switchToTcp(this.role === "creator");
+    if (this.slow === "deciding" || this.connection === "tcp") return;
+    if (!this.peer?.hasTurn()) return this.transfers?.sendSwitch("no");
+
+    this.slow = "deciding";
+    showSlowCard(false);
+    const accepted = await askSwitch();
+    if (this.slow !== "deciding") return;
+
+    if (!accepted) {
+      this.slow = "over";
+      this.transfers?.sendSwitch("no");
+
+      return;
+    }
+
+    this.transfers?.sendSwitch("yes");
+    this.switchToTcp(false);
+  }
+
+  /** Both sides set the room to Relay over TCP; the one that `reconnects` takes its seat again, which pairs both
+   *  anew on relay-only TCP connections, and running transfers resume from where they paused. Restarting ICE on
+   *  the open connection is not enough: Chromium keeps using the direct pair it already has. */
+  private switchToTcp(reconnects: boolean): void {
+    this.slow = "over";
+    this.connection = "tcp";
+    showSlowCard(false);
+    setStatus((m) => m.switching, "info", "waiting");
+    if (!reconnects) return;
+
+    this.dropPeer((m) => m.switching, "info", "plug");
+    this.signal.reconnect();
   }
 
   private async sendFile(file: File | undefined): Promise<void> {

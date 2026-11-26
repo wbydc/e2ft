@@ -185,7 +185,7 @@ export class Peer {
   }
 
   /** A TURN URL in the current config is what could give this browser a relay candidate. */
-  private hasTurn(): boolean {
+  public hasTurn(): boolean {
     return (this.connection.getConfiguration().iceServers ?? []).some((s) => [s.urls].flat().some(isTurnUrl));
   }
 

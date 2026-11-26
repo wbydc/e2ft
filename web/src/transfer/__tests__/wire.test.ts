@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomKey } from "../../crypto/keys.ts";
-import { parseOffer } from "../wire.ts";
+import { parseOffer, parseSwitch } from "../wire.ts";
 
 const offer = (fields: Record<string, unknown>) =>
   parseOffer({
@@ -87,6 +87,22 @@ describe("wire", () => {
 
         assert.equal(parsed?.name, "file");
       });
+    });
+  });
+
+  describe("parseSwitch", () => {
+    test("passes each of the three answers", () => {
+      const answers = ["ask", "yes", "no"].map((a) => parseSwitch({ a }));
+
+      assert.deepEqual(answers, ["ask", "yes", "no"]);
+    });
+
+    test("drops a missing, unknown or non-string answer", () => {
+      const answers = [{}, { a: "maybe" }, { a: 1 }, { a: null }, { a: ["yes"] }].map((message) =>
+        parseSwitch(message),
+      );
+
+      assert.deepEqual(answers, [null, null, null, null, null]);
     });
   });
 });
