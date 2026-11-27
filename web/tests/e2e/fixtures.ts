@@ -92,7 +92,7 @@ export async function launch(
   const page = context.pages()[0] ?? (await context.newPage());
   const peer: Peer = { kind, ctx: context, page, dir, log: [] };
   page.on("console", (message) => {
-    if (message.text().startsWith("[rtc]")) peer.log.push(message.text());
+    if (message.text().startsWith("[rtc]") || message.type() === "error") peer.log.push(message.text());
   });
   page.on("pageerror", (err) => peer.log.push(`[pageerror] ${err.message}`));
   peers.push(peer);

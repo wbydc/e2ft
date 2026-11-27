@@ -344,7 +344,11 @@ export class Room {
           void notify(translate(NOTIFY_TITLE[finished.dir][finished.outcome]), finished.name, finished.id);
         },
         switchTcp: (answer) => void this.peerSwitch(answer),
-        fail: () => this.end((m) => m.transferFailed, "danger"),
+        fail: (err) => {
+          // The screen says only that it failed; the console keeps why, for a bug report.
+          console.error(`transfer failed: ${String(err)}\n${err instanceof Error ? err.stack : ""}`);
+          this.end((m) => m.transferFailed, "danger");
+        },
       },
       LANES,
     );
