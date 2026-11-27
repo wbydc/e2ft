@@ -7,6 +7,8 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-27
+
 ### Added
 
 - A transfer that stays slow, as on networks that slow down direct connections, offers to switch the room to Relay
