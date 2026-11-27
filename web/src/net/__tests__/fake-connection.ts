@@ -1,8 +1,14 @@
-/** A connection whose first `failures` setLocalDescription calls reject with `error`. */
+/** A connection that, like Chromium's after a refused description, refuses every setLocalDescription once it has
+ *  refused one. The next `refusing.length` connections made each refuse with the next error in turn. */
 export class FakeConnection {
-  public static failures: Error[] = [];
-  public static calls = 0;
+  public static refusing: Error[] = [];
+  public static made = 0;
   public localDescription: { toJSON(): RTCSessionDescriptionInit } | null = null;
+  private readonly error = FakeConnection.refusing.shift();
+
+  public constructor() {
+    FakeConnection.made++;
+  }
 
   public createDataChannel() {
     return { readyState: "connecting" };
@@ -13,9 +19,7 @@ export class FakeConnection {
   }
 
   public async setLocalDescription(): Promise<void> {
-    FakeConnection.calls++;
-    const error = FakeConnection.failures.shift();
-    if (error) throw error;
+    if (this.error) throw this.error;
 
     this.localDescription = { toJSON: () => ({ type: "offer", sdp: "v=0" }) };
   }

@@ -5,9 +5,10 @@ import { FakeConnection } from "./fake-connection.ts";
 
 const noIdentity = () => new DOMException("Fingerprint provided but no identity available.", "OperationError");
 
-/** Starts a creator Peer and waits until its offer went out or it failed. */
-async function offer(failures: Error[]): Promise<{ sent: unknown[]; failed: unknown[] }> {
-  FakeConnection.failures = failures;
+/** Starts a creator Peer whose first connections refuse with `refusals`, and waits until its offer went out or it
+ *  failed. */
+async function offer(refusals: Error[]): Promise<{ sent: unknown[]; failed: unknown[] }> {
+  FakeConnection.refusing = refusals;
   const sent: unknown[] = [];
   const failed: unknown[] = [];
   const peer = new Peer("creator", {}, (message) => sent.push(message), {
@@ -16,9 +17,9 @@ async function offer(failures: Error[]): Promise<{ sent: unknown[]; failed: unkn
     fail: (err) => failed.push(err),
   });
   // Each retry waits on a timer that is set only after the previous attempt's promise settles.
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 5; i++) {
     await new Promise((resolve) => setImmediate(resolve));
-    mock.timers.tick(2000);
+    mock.timers.tick(1000);
   }
 
   peer.close();
@@ -29,7 +30,7 @@ async function offer(failures: Error[]): Promise<{ sent: unknown[]; failed: unkn
 describe("Peer", () => {
   describe("offer", () => {
     beforeEach(() => {
-      FakeConnection.calls = 0;
+      FakeConnection.made = 0;
       (globalThis as unknown as { RTCPeerConnection: unknown }).RTCPeerConnection = FakeConnection;
       mock.timers.enable({ apis: ["setTimeout"] });
     });
@@ -39,20 +40,20 @@ describe("Peer", () => {
       delete (globalThis as unknown as { RTCPeerConnection?: unknown }).RTCPeerConnection;
     });
 
-    test("an OperationError on the first offer is retried, and the offer goes out", async () => {
-      const { sent, failed } = await offer(Array.from({ length: 5 }, noIdentity));
+    test("an OperationError is retried on a new connection each time, and the offer goes out", async () => {
+      const { sent, failed } = await offer([noIdentity(), noIdentity()]);
 
       assert.deepEqual(sent, [{ t: "sdp", d: { type: "offer", sdp: "v=0" } }]);
       assert.deepEqual(failed, []);
-      assert.equal(FakeConnection.calls, 6);
+      assert.equal(FakeConnection.made, 3);
     });
 
-    test("fails after six OperationErrors", async () => {
-      const { sent, failed } = await offer(Array.from({ length: 6 }, noIdentity));
+    test("fails when three connections in a row refuse", async () => {
+      const { sent, failed } = await offer([noIdentity(), noIdentity(), noIdentity()]);
 
       assert.deepEqual(sent, []);
       assert.equal(failed.length, 1);
-      assert.equal(FakeConnection.calls, 6);
+      assert.equal(FakeConnection.made, 3);
     });
 
     test("any other error fails at once", async () => {
@@ -60,7 +61,7 @@ describe("Peer", () => {
 
       assert.deepEqual(sent, []);
       assert.equal(failed.length, 1);
-      assert.equal(FakeConnection.calls, 1);
+      assert.equal(FakeConnection.made, 1);
     });
   });
 });

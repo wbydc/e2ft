@@ -31,9 +31,9 @@ export interface PeerHandlers {
 const NO_RELAY_MS = 10_000;
 
 /** Chromium under load can reject a new connection's first offer with an OperationError ("Fingerprint provided but
- *  no identity available") while its DTLS certificate is still being put in place; the same call works moments later.
- *  The pause doubles from OFFER_RETRY_MS, about 3 s over all tries: 300 ms was once not enough in CI. */
-const OFFER_TRIES = 6;
+ *  no identity available"). That connection then refuses every later description with a session error, so the offer
+ *  is tried again on a new connection. */
+const OFFER_TRIES = 3;
 const OFFER_RETRY_MS = 100;
 
 /** The candidate pair the connection uses: `relay` on either side means TURN, `srflx`/`prflx` a punched NAT. */
@@ -46,7 +46,7 @@ export interface Route {
 }
 
 export class Peer {
-  private readonly connection: RTCPeerConnection;
+  private connection: RTCPeerConnection;
   private done = false;
   private sawRelay = false;
   private toldNoRelay = false;
@@ -67,58 +67,13 @@ export class Peer {
     share: Turn | null = null,
     mode: Connection = "auto",
   ) {
-    this.connection = new RTCPeerConnection(config);
-
-    this.connection.onicecandidate = (event) => {
-      if (event.candidate?.type === "relay") {
-        this.sawRelay = true;
-        this.stopNoRelayTimer();
-      }
-
-      send({ t: "ice", c: event.candidate?.toJSON() ?? null });
-    };
-    this.connection.onicegatheringstatechange = () => {
-      if (this.connection.iceGatheringState === "gathering") {
-        this.startNoRelayTimer();
-
-        return;
-      }
-
-      if (this.connection.iceGatheringState === "complete") this.sayNoRelay();
-    };
-    this.connection.onconnectionstatechange = () => {
-      if (this.connection.connectionState !== "failed") return;
-
-      const noRelay = this.hasTurn() && !this.sawRelay;
-      this.fail(noRelay ? new NoRelayError("ICE failed: no relay candidate") : new Error("ICE failed"));
-    };
-
-    const data = this.connection.createDataChannel("share", { ordered: true, negotiated: true, id: 0 });
-    const control = this.connection.createDataChannel("ctl", { ordered: true, negotiated: true, id: 1 });
-    let opened = false;
-
-    for (const channel of [data, control]) {
-      channel.binaryType = "arraybuffer";
-
-      channel.onopen = () => {
-        if (opened || data.readyState !== "open" || control.readyState !== "open") return;
-
-        opened = true;
-        on.open(data, control);
-      };
-      channel.onclose = () => {
-        if (this.done) return;
-
-        this.done = true;
-        on.closed();
-      };
-    }
+    this.connection = this.connect(config);
 
     if (role === "creator") {
       if (share) send({ t: "turn", ...share });
       // After turn: a shared TURN replaces the joiner's config, and relay must apply on top of it.
       if (mode !== "auto") send({ t: "relay", tcp: mode === "tcp" });
-      this.offer().catch((err) => this.fail(err));
+      this.offer(config).catch((err) => this.fail(err));
     }
   }
 
@@ -151,6 +106,63 @@ export class Peer {
     };
   }
 
+  /** A new RTCPeerConnection with both channels, its events handled while it is this Peer's connection. */
+  private connect(config: RTCConfiguration): RTCPeerConnection {
+    const connection = new RTCPeerConnection(config);
+    const current = () => this.connection === connection;
+
+    connection.onicecandidate = (event) => {
+      if (!current()) return;
+
+      if (event.candidate?.type === "relay") {
+        this.sawRelay = true;
+        this.stopNoRelayTimer();
+      }
+
+      this.send({ t: "ice", c: event.candidate?.toJSON() ?? null });
+    };
+    connection.onicegatheringstatechange = () => {
+      if (!current()) return;
+
+      if (connection.iceGatheringState === "gathering") {
+        this.startNoRelayTimer();
+
+        return;
+      }
+
+      if (connection.iceGatheringState === "complete") this.sayNoRelay();
+    };
+    connection.onconnectionstatechange = () => {
+      if (!current() || connection.connectionState !== "failed") return;
+
+      const noRelay = this.hasTurn() && !this.sawRelay;
+      this.fail(noRelay ? new NoRelayError("ICE failed: no relay candidate") : new Error("ICE failed"));
+    };
+
+    const data = connection.createDataChannel("share", { ordered: true, negotiated: true, id: 0 });
+    const control = connection.createDataChannel("ctl", { ordered: true, negotiated: true, id: 1 });
+    let opened = false;
+
+    for (const channel of [data, control]) {
+      channel.binaryType = "arraybuffer";
+
+      channel.onopen = () => {
+        if (!current() || opened || data.readyState !== "open" || control.readyState !== "open") return;
+
+        opened = true;
+        this.on.open(data, control);
+      };
+      channel.onclose = () => {
+        if (!current() || this.done) return;
+
+        this.done = true;
+        this.on.closed();
+      };
+    }
+
+    return connection;
+  }
+
   /** The current config, final once connected: extra data connections reuse it. */
   public config(): RTCConfiguration {
     return this.connection.getConfiguration();
@@ -162,7 +174,8 @@ export class Peer {
     this.connection.close();
   }
 
-  private async offer(): Promise<void> {
+  /** Creator: nothing has gone to the joiner but `turn` and `relay`, so a refused connection can still be replaced. */
+  private async offer(config: RTCConfiguration): Promise<void> {
     for (let attempt = 1; ; attempt++) {
       try {
         await this.connection.setLocalDescription();
@@ -171,7 +184,11 @@ export class Peer {
         const retryable = err instanceof DOMException && err.name === "OperationError";
         if (!retryable || attempt >= OFFER_TRIES || this.done) throw err;
 
-        await new Promise((resolve) => setTimeout(resolve, OFFER_RETRY_MS * 2 ** (attempt - 1)));
+        await new Promise((resolve) => setTimeout(resolve, OFFER_RETRY_MS * attempt));
+        if (this.done) return;
+
+        this.connection.close();
+        this.connection = this.connect(config);
       }
     }
 
