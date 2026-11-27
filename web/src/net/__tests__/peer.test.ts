@@ -16,9 +16,9 @@ async function offer(failures: Error[]): Promise<{ sent: unknown[]; failed: unkn
     fail: (err) => failed.push(err),
   });
   // Each retry waits on a timer that is set only after the previous attempt's promise settles.
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 8; i++) {
     await new Promise((resolve) => setImmediate(resolve));
-    mock.timers.tick(1000);
+    mock.timers.tick(2000);
   }
 
   peer.close();
@@ -40,19 +40,19 @@ describe("Peer", () => {
     });
 
     test("an OperationError on the first offer is retried, and the offer goes out", async () => {
-      const { sent, failed } = await offer([noIdentity(), noIdentity()]);
+      const { sent, failed } = await offer(Array.from({ length: 5 }, noIdentity));
 
       assert.deepEqual(sent, [{ t: "sdp", d: { type: "offer", sdp: "v=0" } }]);
       assert.deepEqual(failed, []);
-      assert.equal(FakeConnection.calls, 3);
+      assert.equal(FakeConnection.calls, 6);
     });
 
-    test("fails after three OperationErrors", async () => {
-      const { sent, failed } = await offer([noIdentity(), noIdentity(), noIdentity()]);
+    test("fails after six OperationErrors", async () => {
+      const { sent, failed } = await offer(Array.from({ length: 6 }, noIdentity));
 
       assert.deepEqual(sent, []);
       assert.equal(failed.length, 1);
-      assert.equal(FakeConnection.calls, 3);
+      assert.equal(FakeConnection.calls, 6);
     });
 
     test("any other error fails at once", async () => {

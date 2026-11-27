@@ -31,8 +31,9 @@ export interface PeerHandlers {
 const NO_RELAY_MS = 10_000;
 
 /** Chromium under load can reject a new connection's first offer with an OperationError ("Fingerprint provided but
- *  no identity available") while its DTLS certificate is still being put in place; the same call works moments later. */
-const OFFER_TRIES = 3;
+ *  no identity available") while its DTLS certificate is still being put in place; the same call works moments later.
+ *  The pause doubles from OFFER_RETRY_MS, about 3 s over all tries: 300 ms was once not enough in CI. */
+const OFFER_TRIES = 6;
 const OFFER_RETRY_MS = 100;
 
 /** The candidate pair the connection uses: `relay` on either side means TURN, `srflx`/`prflx` a punched NAT. */
@@ -170,7 +171,7 @@ export class Peer {
         const retryable = err instanceof DOMException && err.name === "OperationError";
         if (!retryable || attempt >= OFFER_TRIES || this.done) throw err;
 
-        await new Promise((resolve) => setTimeout(resolve, OFFER_RETRY_MS * attempt));
+        await new Promise((resolve) => setTimeout(resolve, OFFER_RETRY_MS * 2 ** (attempt - 1)));
       }
     }
 

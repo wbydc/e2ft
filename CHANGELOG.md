@@ -24,7 +24,9 @@ an older peer stop working). A patch has only fixes.
   was 1 MiB), and control messages no longer wait behind the larger backlog.
 - In Chromium on a busy machine, a connection could fail at once with "Could not connect to the other person, not even
   through the relay" when the browser refused the first offer while it was still setting up encryption; the offer is
-  now tried again up to three times.
+  now tried again for up to about three seconds.
+- A transfer that pauses while its progress bar is still moving now shows the bar at the point where it paused,
+  instead of stopping short with an error in the browser console.
 
 ## [0.16.1] - 2026-11-25
 

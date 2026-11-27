@@ -40,7 +40,8 @@ function glide(dir: Dir, to: number, duration: number) {
   };
   cancelAnimationFrame(glides[dir] ?? 0);
   const from = bar.value;
-  if (to <= from || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  // A pause passes 0 ms: easing over it would divide by zero.
+  if (to <= from || duration <= 0 || matchMedia("(prefers-reduced-motion: reduce)").matches) {
     set(to);
 
     return;
