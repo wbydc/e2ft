@@ -7,7 +7,9 @@ an older peer stop working). A patch has only fixes.
 
 ## [Unreleased]
 
-## [0.17.0] - 2026-11-27
+## [0.17.1] - 2026-11-27
+
+Version 0.17.0 was tagged but never published: its build failed on the offer retry fixed below.
 
 ### Added
 

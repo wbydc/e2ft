@@ -5,7 +5,7 @@ name: e2ft
 services:
   e2ft:
     # The release this file ships with; E2FT_IMAGE runs another, such as your own build.
-    image: ${E2FT_IMAGE:-ghcr.io/wbydc/e2ft:0.17.0}
+    image: ${E2FT_IMAGE:-ghcr.io/wbydc/e2ft:0.17.1}
     # Its health check comes from the image: the page, then a TURN allocation on coturn with the shared secret.
     # Rooms live in this one process's memory: never scale it past one.
     restart: unless-stopped

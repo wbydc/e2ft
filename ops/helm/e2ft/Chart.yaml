@@ -3,8 +3,8 @@ name: e2ft
 description: End-to-end encrypted browser file sharing, with an optional coturn relay
 type: application
 # Both always equal the app version in Cargo.toml; a unit test and the release workflow check it.
-version: 0.17.0
-appVersion: "0.17.0"
+version: 0.17.1
+appVersion: "0.17.1"
 home: https://github.com/wbydc/e2ft
 sources: [https://github.com/wbydc/e2ft]
 keywords: [file-sharing, webrtc, e2ee, turn]
