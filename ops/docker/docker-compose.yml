@@ -27,7 +27,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   coturn:
-    image: docker.io/coturn/coturn:4.19.1
+    image: docker.io/coturn/coturn:4.19.2
     restart: unless-stopped
     # Relay addresses must be the host's own; Docker's port mapping would rewrite peer addresses and break them.
     network_mode: host
